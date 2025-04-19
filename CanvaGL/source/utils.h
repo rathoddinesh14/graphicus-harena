@@ -10,7 +10,18 @@
 #include "fileutils.h"
 #include "camera.h"
 
+static glm::vec3 random_in_unit_sphere() {
+    while (true) {
+        glm::vec3 p = glm::vec3(drand48(), drand48(), drand48()) * 2.0f - glm::vec3(1.0f);
+        if (glm::length(p) < 1.0f) {
+            return glm::normalize(p);
+        }
+    }
+};
 
+static glm::vec3 reflect(const glm::vec3& v, const glm::vec3& n) {
+    return v - 2 * glm::dot(v, n) * n;
+}
 
 static void screenToWorldUsingDepthBuffer(GLFWwindow* window, int SCR_WIDTH, int SCR_HEIGHT, Camera* g_camera) {
     std::cout << "left click" << std::endl;
