@@ -1,7 +1,6 @@
 #include <iostream>
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
-#include <omp.h> // Include OpenMP header
 
 #ifdef __APPLE__
     #include <OpenGL/gl.h>
@@ -113,31 +112,6 @@ glm::vec3 color(const Ray& ray, const HittableList& world, int depth) {
     }
 };
 
-HittableList *random_scene() {
-    HittableList world;
-    world.add(std::make_shared<Sphere>(glm::vec3(0, -1000, 0), 1000, new Lambertian(glm::vec3(0.5f, 0.5f, 0.5f))));
-    for (int a = -11; a < 11; a++) {
-        for (int b = -11; b < 11; b++) {
-            float choose_mat = drand48();
-            glm::vec3 center(a + 0.9f * drand48(), 0.2f, b + 0.9f * drand48());
-            if (glm::length(center - glm::vec3(4, 0.2f, 0)) > 0.9f) {
-                if (choose_mat < 0.8f) { // diffuse
-                    world.add(std::make_shared<Sphere>(center, 0.2f, new Lambertian(glm::vec3(drand48() * drand48(), drand48() * drand48(), drand48() * drand48()))));
-                } else if (choose_mat < 0.95f) { // metal
-                    world.add(std::make_shared<Sphere>(center, 0.2f, new Metal(glm::vec3(0.5f * (1 + drand48()), 0.5f * (1 + drand48()), 0.5f * (1 + drand48())), 0.5f * drand48())));
-                } else { // glass
-                    world.add(std::make_shared<Sphere>(center, 0.2f, new Dielectric(1.5)));
-                }
-            }
-        }
-    }
-    world.add(std::make_shared<Sphere>(glm::vec3(0, 1, 0), 1.0f, new Dielectric(1.5)));
-    world.add(std::make_shared<Sphere>(glm::vec3(-4, 1, 0), 1.0f, new Lambertian(glm::vec3(0.4f, 0.2f, 0.1f))));
-    world.add(std::make_shared<Sphere>(glm::vec3(4, 1, 0), 1.0f, new Metal(glm::vec3(
-        0.7f, 0.6f, 0.5f), 0.0f)));
-    return new HittableList(world);
-}
-
 int main(int argc, char** argv) {
 
     initCanvaGL();
@@ -179,7 +153,7 @@ int main(int argc, char** argv) {
 
     // cosine of PI / 4
     float R = glm::cos(glm::radians(45.0f));
-    HittableList world = *random_scene();
+    HittableList world;
     // Create materials
     Lambertian *lambertian1 = new Lambertian(glm::vec3(0.1f, 0.2f, 0.5f));
     Lambertian *lambertian2 = new Lambertian(glm::vec3(0.8f, 0.8f, 0.0f));
@@ -191,35 +165,35 @@ int main(int argc, char** argv) {
     Dielectric *glass = new Dielectric(1.5f);
 
     // Create spheres
-    // world.add(std::make_shared<Sphere>(glm::vec3(0.0f, 0.0f, 5.0f), 0.5f, lambertian1));
-    // world.add(std::make_shared<Sphere>(glm::vec3(0.0f, -100.5f, 5.0f), 100.0f, lambertian2));
-    // world.add(std::make_shared<Sphere>(glm::vec3(1.0f, 0.0f, 5.0f), 0.5f, metal1));
-    // // world.add(std::make_shared<Sphere>(glm::vec3(-1.0f, 0.0f, -1.0f), 0.5f, metal2));
-    // world.add(std::make_shared<Sphere>(glm::vec3(-1.0f, 0.0f, 5.0f), 0.5f, dielectric));
-    // world.add(std::make_shared<Sphere>(glm::vec3(-1.0f, 0.0f, 5.0f), -0.45f, glass));
-
-    std::srand(std::time(0)); // Seed for random number generation
+    world.add(std::make_shared<Sphere>(glm::vec3(0.0f, 0.0f, 5.0f), 0.5f, lambertian1));
+    world.add(std::make_shared<Sphere>(glm::vec3(0.0f, -100.5f, 5.0f), 100.0f, lambertian2));
+    world.add(std::make_shared<Sphere>(glm::vec3(1.0f, 0.0f, 5.0f), 0.5f, metal1));
+    // world.add(std::make_shared<Sphere>(glm::vec3(-1.0f, 0.0f, -1.0f), 0.5f, metal2));
+    world.add(std::make_shared<Sphere>(glm::vec3(-1.0f, 0.0f, 5.0f), 0.5f, dielectric));
+    world.add(std::make_shared<Sphere>(glm::vec3(-1.0f, 0.0f, 5.0f), -0.45f, glass));
+    // Sphere sphere(glm::vec3(0.0f, 0.0f, -1.0f), 0.5f, glm::vec3(1.0f, 0.0f, 0.0f));
+    // world.add(std::make_shared<Sphere>(glm::vec3(-4.0f, 0.0f, 10.0f), 2.0f, lambertian3));
+    // world.add(std::make_shared<Sphere>(glm::vec3(4.0f, 0.0f, 10.0f), 3.0f, lambertian4));
 
     int nx = SCR_WIDTH, ny = SCR_HEIGHT, ns = argc > 1 ? atoi(argv[1]) : 1;
     std::cout << "Number of samples per pixel: " << ns << std::endl;
+    // glm::vec3 lowerLeftCorner = glm::vec3(-2.0f, -1.0f, -1.0f);
+    // glm::vec3 horizontal = glm::vec3(4.0f, 0.0f, 0.0f);
+    // glm::vec3 vertical = glm::vec3(0.0f, 2.0f, 0.0f);
 
     // Create an array to store the image data
     unsigned char* image = new unsigned char[nx * ny * 3];
     // tracer the rays from camera
     std::cout << "Rendering image..." << std::endl;
-
-    // Parallelize the outer loop using OpenMP
-    #pragma omp parallel for schedule(dynamic)
     for (int j = ny - 1; j >= 0; j--) {
-        // Thread-safe console output
-        // #pragma omp critical
         std::cout << "\rScanlines remaining: " << j << " " << std::flush;
-
         for (int i = 0; i < nx; i++) {
             glm::vec3 col = glm::vec3(0.0f);
             for (int s = 0; s < ns; s++) {
                 float u = float(i + drand48()) / (float)nx;
                 float v = float(j + drand48()) / (float)ny;
+                // glm::vec3 rayDirection = lowerLeftCorner + u * horizontal + v * vertical;
+                // Ray ray(g_camera->get_position(), rayDirection);
                 col += color(g_camera->get_ray(u, v), world, 0);
             }
             col /= (float)ns;

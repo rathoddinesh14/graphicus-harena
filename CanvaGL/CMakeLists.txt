@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.2)
+cmake_minimum_required(VERSION 3.10)
 
 # every cmake project should contain project() command
 project(HelloWorld 
@@ -12,6 +12,9 @@ set(CMAKE_BUILD_TYPE Debug)
 # GoogleTest requires at least C++17
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+include_directories("/usr/local/opt/libomp/include")
+link_directories("/usr/local/opt/libomp/lib")
 
 # opengl
 find_package(OpenGL REQUIRED)
@@ -74,8 +77,8 @@ file(COPY shaders DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
 if (APPLE)
     message("APPLE : Build for MacOS")
-    add_compile_options(-Wno-deprecated-declarations)
-    target_link_libraries(HelloWorld -g glfw GLEW::GLEW "-framework OpenGL" "/opt/local/lib/libSOIL.dylib")
+    add_compile_options(-Wno-deprecated-declarations -Xpreprocessor -fopenmp)
+    target_link_libraries(HelloWorld -g glfw GLEW::GLEW -lomp "-framework OpenGL" "/opt/local/lib/libSOIL.dylib")
 else()
     message("LINUX : Build for Linux")
     target_link_libraries(HelloWorld ${OPENGL_LIBRARIES} ${GLEW_LIBRARIES} ${GLFW_LIBRARIES} ${GLM_LIBRARIES} glfw)

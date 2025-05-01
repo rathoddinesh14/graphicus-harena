@@ -1,7 +1,9 @@
 #include <iostream>
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
-#include <omp.h> // Include OpenMP header
+#include <thread>
+#include <vector>
+#include <mutex>
 
 #ifdef __APPLE__
     #include <OpenGL/gl.h>
@@ -21,6 +23,9 @@
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "thirdparty/stb_image_write.h"
+
+// Mutex for thread-safe console output
+std::mutex console_mutex;
 
 double mouseX = 0.0, clickReleaseX = 0.0;
 double mouseY = 0.0, clickReleaseY = 0.0;
@@ -138,6 +143,29 @@ HittableList *random_scene() {
     return new HittableList(world);
 }
 
+// Function to render a portion of the image
+void render_chunk(int start_row, int end_row, int nx, int ny, int ns, unsigned char* image, const HittableList& world) {
+    for (int j = start_row; j < end_row; j++) {
+        for (int i = 0; i < nx; i++) {
+            glm::vec3 col = glm::vec3(0.0f);
+            for (int s = 0; s < ns; s++) {
+                float u = float(i + drand48()) / (float)nx;
+                float v = float(j + drand48()) / (float)ny;
+                col += color(g_camera->get_ray(u, v), world, 0);
+            }
+            col /= (float)ns;
+            col = glm::vec3(std::sqrt(col.r), std::sqrt(col.g), std::sqrt(col.b)); // gamma correction
+            int index = ((ny - j - 1) * nx + i) * 3;
+            image[index] = static_cast<unsigned char>(255.99f * col.r);
+            image[index + 1] = static_cast<unsigned char>(255.99f * col.g);
+            image[index + 2] = static_cast<unsigned char>(255.99f * col.b);
+        }
+    }
+    std::lock_guard<std::mutex> lock(console_mutex);
+    std::cout << "Rendered rows: " << start_row << " to " << end_row << std::endl;
+    std::cout.flush();
+}
+
 int main(int argc, char** argv) {
 
     initCanvaGL();
@@ -190,54 +218,39 @@ int main(int argc, char** argv) {
     Dielectric *dielectric = new Dielectric(1.5f);
     Dielectric *glass = new Dielectric(1.5f);
 
-    // Create spheres
-    // world.add(std::make_shared<Sphere>(glm::vec3(0.0f, 0.0f, 5.0f), 0.5f, lambertian1));
-    // world.add(std::make_shared<Sphere>(glm::vec3(0.0f, -100.5f, 5.0f), 100.0f, lambertian2));
-    // world.add(std::make_shared<Sphere>(glm::vec3(1.0f, 0.0f, 5.0f), 0.5f, metal1));
-    // // world.add(std::make_shared<Sphere>(glm::vec3(-1.0f, 0.0f, -1.0f), 0.5f, metal2));
-    // world.add(std::make_shared<Sphere>(glm::vec3(-1.0f, 0.0f, 5.0f), 0.5f, dielectric));
-    // world.add(std::make_shared<Sphere>(glm::vec3(-1.0f, 0.0f, 5.0f), -0.45f, glass));
-
     std::srand(std::time(0)); // Seed for random number generation
 
     int nx = SCR_WIDTH, ny = SCR_HEIGHT, ns = argc > 1 ? atoi(argv[1]) : 1;
     std::cout << "Number of samples per pixel: " << ns << std::endl;
 
-    // Create an array to store the image data
     unsigned char* image = new unsigned char[nx * ny * 3];
-    // tracer the rays from camera
     std::cout << "Rendering image..." << std::endl;
 
-    // Parallelize the outer loop using OpenMP
-    #pragma omp parallel for schedule(dynamic)
-    for (int j = ny - 1; j >= 0; j--) {
-        // Thread-safe console output
-        // #pragma omp critical
-        std::cout << "\rScanlines remaining: " << j << " " << std::flush;
+    // Number of threads to use
+    const int num_threads = std::thread::hardware_concurrency();
+    std::vector<std::thread> threads;
+    int rows_per_thread = ny / num_threads;
 
-        for (int i = 0; i < nx; i++) {
-            glm::vec3 col = glm::vec3(0.0f);
-            for (int s = 0; s < ns; s++) {
-                float u = float(i + drand48()) / (float)nx;
-                float v = float(j + drand48()) / (float)ny;
-                col += color(g_camera->get_ray(u, v), world, 0);
-            }
-            col /= (float)ns;
-            // gamma correction
-            col = glm::vec3(std::sqrt(col.r), std::sqrt(col.g), std::sqrt(col.b));
-            // Convert color to 0-255 range and store in the image array
-            int index = ((ny - j - 1) * nx + i) * 3;
-            image[index] = static_cast<unsigned char>(255.99f * col.r);
-            image[index + 1] = static_cast<unsigned char>(255.99f * col.g);
-            image[index + 2] = static_cast<unsigned char>(255.99f * col.b);
-        }
+    std::cout << "Number of threads: " << num_threads << std::endl;
+    std::cout << "Rows per thread: " << rows_per_thread << std::endl;
+
+    // Launch threads
+    for (int t = 0; t < num_threads; t++) {
+        int start_row = t * rows_per_thread;
+        int end_row = (t == num_threads - 1) ? ny : start_row + rows_per_thread;
+        threads.emplace_back(render_chunk, start_row, end_row, nx, ny, ns, image, std::ref(world));
     }
+
+    // Join threads
+    for (auto& thread : threads) {
+        thread.join();
+    }
+
     std::cout << "\nRendering complete." << std::endl;
 
     // Save the image as a PNG file
     stbi_write_png("output.png", nx, ny, 3, image, nx * 3);
 
-    // Clean up
     delete[] image;
 
     // projection and view matrix
