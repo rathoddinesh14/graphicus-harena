@@ -1,10 +1,9 @@
 #ifndef __CAMERA_H__
 #define __CAMERA_H__
 
-
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
-
+#include <raytracer/ray.h>
 
 enum Cam_Movement {
     FORWARD,
@@ -12,7 +11,6 @@ enum Cam_Movement {
     LEFT,
     RIGHT
 };
-
 
 // Default camera values
 // yaw indicates the rotation around the y-axis(vertical)
@@ -32,6 +30,7 @@ class Camera {
     glm::vec3 m_up;
     glm::vec3 m_right;
     glm::vec3 m_world_up;
+    glm::vec3 lower_left_corner, horizontal, vertical;
 
     // euler angles
     float m_yaw;
@@ -41,6 +40,9 @@ class Camera {
     float m_movement_speed;
     float m_mouse_sensitivity;
     float m_zoom;
+
+    float m_vfov; // vertical field of view
+    float m_aspect_ratio; // aspect ratio
 
     void update_camera_vectors();
 
@@ -60,6 +62,26 @@ public:
     float get_zoom() const;
 
     glm::vec3 get_position() const;
+
+    // Add setters and getters for vfov and aspect ratio
+    void set_vfov(float vfov) { m_vfov = vfov; }
+    float get_vfov() const { return m_vfov; }
+
+    void set_aspect_ratio(float aspect_ratio) { m_aspect_ratio = aspect_ratio; }
+    float get_aspect_ratio() const { return m_aspect_ratio; }
+
+    void update() {
+        float theta = glm::radians(m_vfov);
+        float h = 2.0f * tan(theta / 2.0f);
+        float w = h * m_aspect_ratio;
+        lower_left_corner = m_position - m_right * (w / 2.0f) - m_up * (h / 2.0f) - m_front;
+        horizontal = m_right * w;
+        vertical = m_up * h;
+    }
+
+    Ray get_ray(float u, float v) {
+        return Ray(m_position, lower_left_corner + u * horizontal + v * vertical - m_position);
+    }
 
 };
 
