@@ -1,2 +1,10 @@
 html,body,#root{height:100%;margin:0}
 canvas{display:block;width:100%;height:100%}
+
+.layout{display:flex;height:100%;}
+.sidebar{width:260px;padding:12px;border-right:1px solid #222;background:#0f1113;color:#e6eef6;overflow:auto}
+.main{flex:1;display:flex;flex-direction:column}
+.topbar{padding:8px;border-bottom:1px solid #222;background:#0b0c0d}
+.dicom-loader .button{display:inline-block;padding:8px 12px;background:#2b6ea3;color:white;border-radius:4px;cursor:pointer}
+.dicom-loader input[type=file]{display:none}
+
