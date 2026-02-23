@@ -8,3 +8,6 @@ canvas{display:block;width:100%;height:100%}
 .dicom-loader .button{display:inline-block;padding:8px 12px;background:#2b6ea3;color:white;border-radius:4px;cursor:pointer}
 .dicom-loader input[type=file]{display:none}
 
+.slices label{display:inline-block;color:#e6eef6;margin-left:8px}
+.slices input[type=range]{vertical-align:middle;margin-left:6px}
+

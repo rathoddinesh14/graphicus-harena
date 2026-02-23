@@ -36,6 +36,20 @@ export class ShaderProgram {
     this.gl.useProgram(this.program);
   }
 
+  getUniformLocation(name: string): WebGLUniformLocation | null {
+    return this.gl.getUniformLocation(this.program, name);
+  }
+
+  setUniformMatrix4fv(location: WebGLUniformLocation | null, mat: Float32Array) {
+    if (!location) return;
+    this.gl.uniformMatrix4fv(location, false, mat);
+  }
+
+  setUniform4f(location: WebGLUniformLocation | null, x: number, y: number, z: number, w: number) {
+    if (!location) return;
+    this.gl.uniform4f(location, x, y, z, w);
+  }
+
   dispose(): void {
     if (this.program) {
       this.gl.deleteProgram(this.program);

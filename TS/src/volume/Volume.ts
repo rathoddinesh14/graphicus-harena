@@ -39,6 +39,10 @@ export class Volume {
     // allocate data as Float32
     this.data = new Float32Array(this.width * this.height * this.depth);
 
+    // compute min/max while copying
+    let min = Number.POSITIVE_INFINITY;
+    let max = Number.NEGATIVE_INFINITY;
+
     // copy slices into data
     for (let z = 0; z < this.depth; z++) {
       const slice = sorted[z];
@@ -47,8 +51,69 @@ export class Volume {
       // assume src is row-major unsigned
       for (let i = 0; i < src.length && i < this.width * this.height; i++) {
         this.data[planeOffset + i] = src[i];
+        const v = this.data[planeOffset + i];
+        if (v < min) min = v;
+        if (v > max) max = v;
       }
     }
+    if (!isFinite(min)) min = 0;
+    if (!isFinite(max)) max = 1;
+    this._minValue = min;
+    this._maxValue = max;
+  }
+
+  private _minValue: number = 0;
+  private _maxValue: number = 1;
+
+  // axis: 'axial' (z), 'sagittal' (x), 'coronal' (y)
+  getSliceUint8(axis: 'axial' | 'sagittal' | 'coronal', index: number): { data: Uint8Array; width: number; height: number } {
+    if (!this.data) return { data: new Uint8Array(0), width: 0, height: 0 };
+    const min = this._minValue;
+    const max = this._maxValue;
+    const range = max - min || 1;
+
+    if (axis === 'axial') {
+      const w = this.width;
+      const h = this.height;
+      const out = new Uint8Array(w * h);
+      const z = Math.max(0, Math.min(this.depth - 1, index));
+      const offset = z * w * h;
+      for (let i = 0; i < w * h; i++) {
+        const v = this.data[offset + i];
+        out[i] = Math.round(((v - min) / range) * 255);
+      }
+      return { data: out, width: w, height: h };
+    }
+
+    if (axis === 'sagittal') {
+      // x index -> plane of size depth x height (z horizontally, y vertically)
+      const w = this.depth;
+      const h = this.height;
+      const out = new Uint8Array(w * h);
+      const x = Math.max(0, Math.min(this.width - 1, index));
+      for (let y = 0; y < h; y++) {
+        for (let z = 0; z < this.depth; z++) {
+          const v = this.getVoxel(x, y, z);
+          const idx = y * w + z;
+          out[idx] = Math.round(((v - min) / range) * 255);
+        }
+      }
+      return { data: out, width: w, height: h };
+    }
+
+    // coronal: y index -> plane of size width x depth (x horizontally, z vertically)
+    const w = this.width;
+    const h = this.depth;
+    const out = new Uint8Array(w * h);
+    const yIdx = Math.max(0, Math.min(this.height - 1, index));
+    for (let z = 0; z < this.depth; z++) {
+      for (let x = 0; x < this.width; x++) {
+        const v = this.getVoxel(x, yIdx, z);
+        const idx = z * w + x;
+        out[idx] = Math.round(((v - min) / range) * 255);
+      }
+    }
+    return { data: out, width: w, height: h };
   }
 
   getIndex(x: number, y: number, z: number) {
