@@ -1,0 +1,67 @@
+\documentclass{beamer}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{graphicx}
+\usepackage{tikz}
+\usepackage{amsmath}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{bookmark}
+
+\usetikzlibrary{shapes.geometric, arrows.meta, shadows, positioning}
+
+% Theme
+\usetheme{Madrid}
+\usecolortheme{default}
+\setbeamertemplate{navigation symbols}{}
+
+% Custom JavaScript definition for listings
+\lstdefinelanguage{JavaScript}{
+  keywords={break, case, catch, continue, debugger, default, delete, do, else, false, finally, for, function, if, in, instanceof, new, null, return, switch, this, throw, true, try, typeof, var, void, while, with, as, async, await, const, let, class, export, import, from, extends},
+  morecomment=[l]{//},
+  morecomment=[s]{/*}{*/},
+  morestring=[b]',
+  morestring=[b]"
+}
+
+\lstset{
+  language=JavaScript,
+  basicstyle=\ttfamily\small,
+  keywordstyle=\color{blue}\bfseries,
+  commentstyle=\color{gray},
+  stringstyle=\color{red},
+  breaklines=true,
+  showstringspaces=false
+}
+
+\title{DICOM Volume Visualization}
+\subtitle{From Medical Imaging Data to Interactive 3D Rendering}
+\author{Graphicus-Harena Project}
+\date{\today}
+
+\begin{document}
+%============================
+% TITLE SLIDE
+%============================
+\frame{\titlepage}
+
+%============================
+% TABLE OF CONTENTS
+%============================
+\begin{frame}
+\frametitle{Overview}
+\tableofcontents
+\end{frame}
+
+\include{intro}
+\include{dicom_parsing}
+\include{vol_dsa}
+\include{slice_ext}
+\include{webgl}
+\include{slice_rendering}
+\include{api}
+\include{summary}
+
+\end{document}

@@ -1,0 +1,334 @@
+%============================
+% SECTION 5: WEBGL RENDERING
+%============================
+\section{WebGL Rendering Architecture}
+
+\begin{frame}{WebGL Pipeline: The Host (CPU)}
+\begin{center}
+\begin{tikzpicture}[
+    node distance=1.2cm,
+    base/.style={rectangle, rounded corners, draw, thick, text width=3cm, align=center, font=\sffamily\small, minimum height=0.8cm},
+    cpu/.style={base, fill=yellow!10, draw=yellow!60!black}
+]
+  \node[cpu] (js) {JavaScript Application \\ \scriptsize (DICOM Parsing / Logic)};
+  \node[cpu, below=of js] (ctx) {WebGL Context \\ \scriptsize (The API Bridge)};
+  
+  \draw[-Stealth, thick, gray] (js) -- (ctx);
+\end{tikzpicture}
+\end{center}
+
+\begin{itemize}
+    \item \textbf{Data Ingestion:} JS handles the \texttt{ArrayBuffer} from DICOM files.
+    \item \textbf{State Management:} The Context manages textures, shaders, and draw calls.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{WebGL Pipeline: GPU Resources}
+\begin{center}
+\begin{tikzpicture}[
+    node distance=1cm,
+    res/.style={rectangle, rounded corners, draw=blue!60!black, fill=blue!10, thick, text width=2.8cm, align=center, font=\sffamily\small, minimum height=1cm}
+]
+  \node[res] (tex) {3D Texture \\ \scriptsize (Voxel Data)};
+  \node[res, left=of tex] (buf) {Geometry Buffers \\ \scriptsize (Cube Vertices)};
+  \node[res, right=of tex] (shd) {Shader Source \\ \scriptsize (GLSL Code)};
+
+  \draw[dashed, gray] (-5, -1) -- (5, -1) node[midway, below, font=\tiny] {Uploaded from CPU to GPU VRAM};
+\end{tikzpicture}
+\end{center}
+
+\begin{block}{Volume Storage}
+The entire 3D DICOM stack is stored as a \textbf{Texture3D}, allowing the GPU to perform hardware-accelerated interpolation between slices.
+\end{block}
+\end{frame}
+
+\begin{frame}{WebGL Pipeline: Shader Execution}
+\begin{center}
+\begin{tikzpicture}[
+    node distance=1.2cm,
+    pipe/.style={rectangle, rounded corners, draw=green!60!black, fill=green!10, thick, text width=3.5cm, align=center, font=\sffamily\small, minimum height=0.9cm},
+    out/.style={rectangle, rounded corners, draw=red!60!black, fill=red!10, thick, text width=3.5cm, align=center, font=\sffamily\small}
+]
+  \node[pipe] (vs) {Vertex Shader \\ \scriptsize (Positions the Volume Cube)};
+  \node[pipe, below=of vs] (fs) {Fragment Shader \\ \scriptsize (Volume Ray Casting)};
+  \node[out, below=of fs] (canvas) {Canvas Display};
+
+  \draw[-Stealth, thick, gray] (vs) -- (fs);
+  \draw[-Stealth, thick, gray] (fs) -- (canvas);
+\end{tikzpicture}
+\end{center}
+
+\begin{itemize}
+    \item \textbf{Rasterization:} The GPU determines which pixels on screen cover the volume.
+    \item \textbf{Ray Marching:} The Fragment Shader "steps" through the 3D texture for every pixel to calculate transparency.
+\end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{WebGL Context Initialization}
+
+\begin{lstlisting}
+constructor(canvas: HTMLCanvasElement, 
+            vertexSource: string, 
+            fragmentSource: string) {
+  this.canvas = canvas;
+  
+  // Get WebGL context
+  const gl = canvas.getContext('webgl');
+  if (!gl) throw new Error('WebGL not supported');
+  
+  this.gl = gl;
+  
+  // Enable depth testing
+  this.gl.enable(this.gl.DEPTH_TEST);
+  this.gl.depthFunc(this.gl.LEQUAL);
+  
+  // Set viewport
+  this.gl.viewport(0, 0, canvas.width, canvas.height);
+  
+  // Compile shaders
+  this.program = new ShaderProgram(gl, 
+                                   vertexSource, 
+                                   fragmentSource);
+  
+  // Create camera and controls
+  this.camera = new Camera();
+  this.mouse = new MouseController(canvas, this.camera);
+}
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}
+\frametitle{Shader Program Compilation}
+
+\textbf{Pipeline:}
+\begin{enumerate}
+  \item \textbf{Create Shader}: \texttt{gl.createShader(type)}
+  \item \textbf{Set Source}: \texttt{gl.shaderSource(shader, source)}
+  \item \textbf{Compile}: \texttt{gl.compileShader(shader)}
+  \item \textbf{Create Program}: \texttt{gl.createProgram()}
+  \item \textbf{Attach Shaders}: \texttt{gl.attachShader(program, shader)}
+  \item \textbf{Link}: \texttt{gl.linkProgram(program)}
+  \item \textbf{Use}: \texttt{gl.useProgram(program)}
+\end{enumerate}
+
+\vspace{0.5cm}
+
+\textbf{Error Handling:}
+\begin{itemize}
+  \item Check \texttt{gl.COMPILE\_STATUS} after compilation
+  \item Check \texttt{gl.LINK\_STATUS} after linking
+  \item Use \texttt{getShaderInfoLog()} for debug messages
+\end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Vertex Shader Example}
+
+\textbf{Purpose:} Transform geometry to screen space
+
+\begin{lstlisting}[language=glsl]
+attribute vec3 a_position;      // Vertex position
+attribute vec2 a_texcoord;      // Texture coordinate
+varying vec2 v_texcoord;        // To fragment shader
+uniform mat4 u_matrix;          // Model-view-projection
+
+void main() {
+  // Pass texture coordinate to fragment shader
+  v_texcoord = a_texcoord;
+  
+  // Transform position
+  gl_Position = u_matrix * vec4(a_position, 1.0);
+}
+\end{lstlisting}
+
+\textbf{Key Concepts:}
+\begin{itemize}
+  \item \textbf{attribute}: Per-vertex data
+  \item \textbf{uniform}: Constant for all vertices
+  \item \textbf{varying}: Interpolated per fragment
+  \item \textbf{gl\_Position}: Output vertex position
+\end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Fragment Shader Example}
+
+\textbf{Purpose:} Determine color for each pixel
+
+\begin{lstlisting}[language=glsl]
+precision mediump float;
+varying vec2 v_texcoord;
+uniform sampler2D u_texture;
+
+void main() {
+  // Sample texture at this fragment
+  float v = texture2D(u_texture, v_texcoord).r;
+  
+  // Convert to grayscale color
+  gl_FragColor = vec4(v, v, v, 1.0);
+}
+\end{lstlisting}
+
+\textbf{Key Concepts:}
+\begin{itemize}
+  \item \textbf{sampler2D}: 2D texture unit
+  \item \textbf{texture2D()}: Sample texture at UV coords
+  \item \textbf{gl\_FragColor}: Output pixel color
+  \item \textbf{precision}: Floating-point precision
+\end{itemize}
+\end{frame}
+
+% \begin{frame}
+% \frametitle{Textures in WebGL}
+
+% \textbf{Texture Creation:}
+% \begin{itemize}
+%   \item \texttt{gl.createTexture()}: Allocate texture object
+%   \item \texttt{gl.bindTexture(gl.TEXTURE\_2D, tex)}: Bind for operations
+%   \item \texttt{gl.texImage2D()}: Upload pixel data
+%   \item \texttt{gl.texParameteri()}: Set filtering/wrapping
+% \end{itemize}
+
+% \vspace{0.5cm}
+
+% \textbf{Slice Texture Update:}
+% \begin{lstlisting}[language=JavaScript]
+% // Create texture from slice data
+% gl.bindTexture(gl.TEXTURE_2D, this.sliceTexture);
+% gl.texImage2D(
+%   gl.TEXTURE_2D, 0, gl.LUMINANCE,
+%   width, height, 0,
+%   gl.LUMINANCE, gl.UNSIGNED_BYTE,
+%   sliceBytes
+% );
+% \end{lstlisting}
+
+% \textbf{Key Parameters:}
+% \begin{itemize}
+%   \item \textbf{LUMINANCE}: Single channel (grayscale)
+%   \item \textbf{UNSIGNED\_BYTE}: 8-bit pixel values
+%   \item \textbf{width, height}: Texture dimensions
+% \end{itemize}
+% \end{frame}
+
+% \begin{frame}
+% \frametitle{Vertex Buffers and Attributes}
+
+% \textbf{Vertex Buffer Object (VBO):}
+% \begin{itemize}
+%   \item GPU memory object storing vertex data
+%   \item \texttt{gl.createBuffer()}: Create buffer
+%   \item \texttt{gl.bindBuffer()}: Bind for operations
+%   \item \texttt{gl.bufferData()}: Upload data to GPU
+% \end{itemize}
+
+% \vspace{0.5cm}
+
+% \textbf{Vertex Attribute Pointers:}
+% \begin{itemize}
+%   \item \texttt{gl.enableVertexAttribArray()}: Enable attribute
+%   \item \texttt{gl.vertexAttribPointer()}: Describe layout
+%   \item \textbf{Parameters}: Index, size, type, normalized, stride, offset
+% \end{itemize}
+
+% \vspace{0.5cm}
+
+% \textbf{Example:} Position (vec3) + TexCoord (vec2)
+% \begin{itemize}
+%   \item Stride: $3 \times 4 + 2 \times 4 = 20$ bytes
+%   \item Offset for texcoord: $3 \times 4 = 12$ bytes
+% \end{itemize}
+% \end{frame}
+
+% \begin{frame}[fragile]
+% \frametitle{Rendering Loop}
+
+% \begin{lstlisting}
+% start(): void {
+%   const loop = () => {
+%     // Clear buffers
+%     this.gl.clear(this.gl.COLOR_BUFFER_BIT | 
+%                   this.gl.DEPTH_BUFFER_BIT);
+    
+%     // Render scene
+%     if (this.mesh) {
+%       this.program.use();
+%       this.renderMesh(this.mesh);
+%     }
+    
+%     // Render slices
+%     if (this.volume) {
+%       this.sliceProgram.use();
+%       this.renderSlices();
+%     }
+    
+%     // Request next frame
+%     this.animationId = requestAnimationFrame(loop);
+%   };
+  
+%   this.animationId = requestAnimationFrame(loop);
+% }
+% \end{lstlisting}
+
+% \textbf{Key Points:}
+% \begin{itemize}
+%   \item \textbf{requestAnimationFrame}: Browser-optimized rendering
+%   \item \textbf{Clear}: Remove previous frame data
+%   \item \textbf{Use}: Activate shader program
+%   \item \textbf{Draw}: Render geometry
+% \end{itemize}
+% \end{frame}
+
+% \begin{frame}
+% \frametitle{Depth Testing}
+
+% \textbf{Problem:} Overlapping geometry renders incorrectly without depth info
+
+% \vspace{0.5cm}
+
+% \textbf{Solution:} Depth Test (Z-buffering)
+% \begin{itemize}
+%   \item Each pixel stores depth value (distance from camera)
+%   \item Only draw pixel if new depth $<$ stored depth
+%   \item Ensures correct occlusion ordering
+%   \item \texttt{gl.enable(gl.DEPTH\_TEST)}
+%   \item \texttt{gl.depthFunc(gl.LEQUAL)}: Update if less or equal
+% \end{itemize}
+
+% \vspace{0.5cm}
+
+% \textbf{Configuration:}
+% \begin{itemize}
+%   \item \texttt{NEVER}: Never pass
+%   \item \texttt{LESS}: Pass if new $<$ stored
+%   \item \texttt{EQUAL}: Pass if equal
+%   \item \texttt{LEQUAL}: Pass if $\leq$ (typical)
+%   \item \texttt{GREATER}: Pass if $>$
+%   \item \texttt{ALWAYS}: Always pass
+% \end{itemize}
+% \end{frame}
+
+% \begin{frame}
+% \frametitle{Matrix Transformations}
+
+% \textbf{Model-View-Projection (MVP) Matrix:}
+% $$\text{gl\_Position} = P \times V \times M \times \text{position}$$
+
+% Where:
+% \begin{itemize}
+%   \item $M$: Model matrix (geometry to world space)
+%   \item $V$: View matrix (world to camera space)
+%   \item $P$: Projection matrix (camera to screen space)
+% \end{itemize}
+
+% \vspace{0.5cm}
+
+% \textbf{Camera Implementation:}
+% \begin{itemize}
+%   \item Spherical coordinates: azimuth, polar, distance
+%   \item Eye position: $(r \sin\phi \cos\theta, r \sin\phi \sin\theta, r \cos\phi)$
+%   \item Look-at: Compute view matrix from eye, center, up
+%   \item Perspective: Configurable FOV, aspect ratio, near/far planes
+% \end{itemize}
+% \end{frame}

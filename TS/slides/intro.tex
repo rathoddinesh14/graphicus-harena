@@ -1,0 +1,75 @@
+%============================
+% SECTION 1: INTRODUCTION
+%============================
+\section{Introduction}
+
+\begin{frame}
+\frametitle{What is DICOM?}
+\begin{itemize}
+  \item \textbf{DICOM} = Digital Imaging and Communications in Medicine
+  \item Standard format for medical imaging data
+  \item Contains both metadata and pixel data
+  \item Common in CT, MRI, X-ray, and other modalities
+  \item Multiple files form a 3D volume (one file per slice)
+\end{itemize}
+
+\vspace{1cm}
+
+\textbf{Goal:} Build an interactive web-based viewer that:
+\begin{enumerate}
+  \item Reads multiple DICOM files
+  \item Constructs a 3D volume data structure
+  \item Renders orthogonal slices (axial, sagittal, coronal)
+  \item Uses WebGL for GPU-accelerated rendering
+\end{enumerate}
+\end{frame}
+
+% Ensure these are in your preamble:
+% \usetikzlibrary{positioning, arrows.meta, shadows}
+
+\begin{frame}[fragile]
+\frametitle{Architecture Overview}
+\begin{center}
+\begin{tikzpicture}[
+    % Reduced horizontal (1.2cm) and vertical (1.0cm) spacing
+    node distance=1.0cm and 1.2cm,
+    force/.style={
+        rectangle, rounded corners, draw=blue!80, fill=blue!5, 
+        thick, inner sep=5pt, text centered, 
+        minimum width=2.2cm, % Slightly narrower boxes
+        minimum height=0.8cm,
+        drop shadow={opacity=0.2}, 
+        font=\sffamily\scriptsize % Smaller font to save space
+    },
+    arrow/.style={-Stealth, thick, draw=gray!60}
+]
+  % Top Row: Ingestion
+  \node[force] (dicom) {DICOM Files};
+  \node[force, right=of dicom] (parser) {Parser};
+  \node[force, right=of parser] (volume) {Volume Data};
+  
+  % Bottom Row: Rendering
+  \node[force, below=of volume] (slices) {Slice Extraction};
+  \node[force, left=of slices] (webgl) {WebGL Renderer};
+  \node[force, left=of webgl] (display) {GPU Display};
+
+  % Connecting Arrows
+  \draw[arrow] (dicom) -- (parser);
+  \draw[arrow] (parser) -- (volume);
+  \draw[arrow] (volume) -- (slices);
+  \draw[arrow] (slices) -- (webgl);
+  \draw[arrow] (webgl) -- (display);
+
+  % Optional: Visual flow indicator
+  \draw[arrow, dashed, color=gray!40] (volume.south) -- (slices.north);
+
+\end{tikzpicture}
+\end{center}
+
+\begin{exampleblock}{Key Stages}
+\begin{itemize}
+    \item \textbf{Data:} Normalizing diverse DICOM tags into a consistent voxel grid.
+    \item \textbf{Compute:} Leveraging WebGL for hardware-accelerated interpolation.
+\end{itemize}
+\end{exampleblock}
+\end{frame}

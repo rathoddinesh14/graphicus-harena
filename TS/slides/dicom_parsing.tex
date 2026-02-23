@@ -1,0 +1,107 @@
+%============================
+% SECTION 2: DICOM PARSING
+%============================
+\section{Reading DICOM Data}
+
+\begin{frame}
+\frametitle{DICOM File Structure}
+DICOM files are binary with tagged structure:
+
+\begin{itemize}
+  \item \textbf{Group and Element tags}: (XXXX, XXXX) in hexadecimal
+  \item \textbf{Value Representation (VR)}: Data type (UI, CS, LO, US, OW, etc.)
+  \item \textbf{Length}: Bytes in the value
+  \item \textbf{Value}: Actual data
+\end{itemize}
+
+\vspace{0.5cm}
+
+\textbf{Key DICOM Tags for Image Slices:}
+\small
+\begin{tabular}{|l|l|}
+\hline
+\textbf{Tag} & \textbf{Description} \\
+\hline
+(0028,0010) & Rows (height) \\
+(0028,0011) & Columns (width) \\
+(0028,0100) & Bits Allocated (8 or 16) \\
+(0020,0013) & Instance Number \\
+(0020,0032) & Image Position Patient (x, y, z) \\
+(7FE0,0010) & Pixel Data (binary image) \\
+\hline
+\end{tabular}
+\end{frame}
+
+\begin{frame}[fragile]{DICOM Parsing: Metadata}
+\begin{columns}
+\begin{column}{0.5\textwidth}
+\begin{lstlisting}
+// Extract Header Tags
+const rows = dataSet.uint16('x00280010');
+const cols = dataSet.uint16('x00280011');
+const bits = dataSet.uint16('x00280100');
+\end{lstlisting}
+\end{column}
+\begin{column}{0.5\textwidth}
+\small
+\textbf{Key Tags:}
+\begin{itemize}
+    \item \texttt{x00280010}: Image Height (Rows)
+    \item \texttt{x00280011}: Image Width (Columns)
+    \item \texttt{x00280100}: Bits Allocated (usually 16-bit for CT/MRI)
+\end{itemize}
+\end{column}
+\end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{DICOM Parsing: Pixel Data}
+\begin{lstlisting}
+// Locate the Pixel Data Element (7FE0,0010)
+const pixelElement = dataSet.elements.x7fe00010;
+
+// Create a view without copying the underlying buffer
+const pixelData = new Uint16Array(
+  byteArray.buffer, 
+  pixelElement.dataOffset, 
+  pixelElement.length / 2
+);
+\end{lstlisting}
+\vfill
+\begin{alertblock}{Performance Note}
+Using \texttt{Uint16Array} on the existing \texttt{buffer} prevents a full memory copy, which is critical when loading 500+ slices.
+\end{alertblock}
+\end{frame}
+
+\begin{frame}[fragile]{DICOM Parsing: Spatial Context}
+\begin{lstlisting}
+// Image Position (Patient) Tag
+const posStr = dataSet.string('x00200032');
+const [x, y, z] = posStr.split(' ').map(Number);
+\end{lstlisting}
+\vfill
+\begin{itemize}
+    \item \textbf{Image Position (Patient):} Specifies the $x, y, z$ coordinates of the upper left hand corner of the slice.
+    \item \textbf{Stacking:} We use the \texttt{z} value to sort slices into a coherent 3D volume.
+\end{itemize}
+\end{frame}
+
+\begin{frame}
+\frametitle{Data Type Handling}
+\begin{itemize}
+  \item \textbf{8-bit images}: Uint8Array (common in radiography)
+  \item \textbf{16-bit images}: Uint16Array (common in CT/MRI)
+  \item \textbf{Byte ordering}: Little-endian on most systems
+  \item \textbf{Pixel representation}: Usually unsigned (0 to max)
+  \item Hounsfield Units in CT: Requires proper windowing
+\end{itemize}
+
+\vspace{0.5cm}
+
+\textbf{Slice Collection:}
+\begin{itemize}
+  \item Multiple DICOM files $\rightarrow$ one file per slice
+  \item Files must be sorted by spatial position
+  \item Use \texttt{ImagePositionPatient} (most reliable)
+  \item Fallback to \texttt{InstanceNumber}
+\end{itemize}
+\end{frame}
