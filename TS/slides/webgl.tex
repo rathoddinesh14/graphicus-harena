@@ -46,12 +46,13 @@ The entire 3D DICOM stack is stored as a \textbf{Texture3D}, allowing the GPU to
 \begin{center}
 \begin{tikzpicture}[
     node distance=1.2cm,
+    % Renamed 'out' to 'displayout' to avoid conflict with TikZ keyword
     pipe/.style={rectangle, rounded corners, draw=green!60!black, fill=green!10, thick, text width=3.5cm, align=center, font=\sffamily\small, minimum height=0.9cm},
-    out/.style={rectangle, rounded corners, draw=red!60!black, fill=red!10, thick, text width=3.5cm, align=center, font=\sffamily\small}
+    displayout/.style={rectangle, rounded corners, draw=red!60!black, fill=red!10, thick, text width=3.5cm, align=center, font=\sffamily\small}
 ]
   \node[pipe] (vs) {Vertex Shader \\ \scriptsize (Positions the Volume Cube)};
   \node[pipe, below=of vs] (fs) {Fragment Shader \\ \scriptsize (Volume Ray Casting)};
-  \node[out, below=of fs] (canvas) {Canvas Display};
+  \node[displayout, below=of fs] (canvas) {Canvas Display};
 
   \draw[-Stealth, thick, gray] (vs) -- (fs);
   \draw[-Stealth, thick, gray] (fs) -- (canvas);
@@ -59,8 +60,8 @@ The entire 3D DICOM stack is stored as a \textbf{Texture3D}, allowing the GPU to
 \end{center}
 
 \begin{itemize}
-    \item \textbf{Rasterization:} The GPU determines which pixels on screen cover the volume.
-    \item \textbf{Ray Marching:} The Fragment Shader "steps" through the 3D texture for every pixel to calculate transparency.
+    \item \textbf{Rasterization:} The GPU determines which pixels on screen cover the geometry (the "proxies" for our volume).
+    \item \textbf{Ray Marching:} For every fragment, the shader samples the 3D texture along the camera's view ray to compute the final pixel intensity.
 \end{itemize}
 \end{frame}
 
@@ -128,15 +129,14 @@ constructor(canvas: HTMLCanvasElement,
 \textbf{Purpose:} Transform geometry to screen space
 
 \begin{lstlisting}[language=glsl]
-attribute vec3 a_position;      // Vertex position
-attribute vec2 a_texcoord;      // Texture coordinate
-varying vec2 v_texcoord;        // To fragment shader
-uniform mat4 u_matrix;          // Model-view-projection
+attribute vec3 a_position; // Vertex position
+attribute vec2 a_texcoord; // Texture coordinate
+varying vec2 v_texcoord;   // To fragment shader
+uniform mat4 u_matrix;     // Model-view-projection
 
 void main() {
   // Pass texture coordinate to fragment shader
   v_texcoord = a_texcoord;
-  
   // Transform position
   gl_Position = u_matrix * vec4(a_position, 1.0);
 }
@@ -179,156 +179,158 @@ void main() {
 \end{itemize}
 \end{frame}
 
-% \begin{frame}
-% \frametitle{Textures in WebGL}
+\begin{frame}[fragile,allowframebreaks]
+\frametitle{Textures in WebGL}
 
-% \textbf{Texture Creation:}
-% \begin{itemize}
-%   \item \texttt{gl.createTexture()}: Allocate texture object
-%   \item \texttt{gl.bindTexture(gl.TEXTURE\_2D, tex)}: Bind for operations
-%   \item \texttt{gl.texImage2D()}: Upload pixel data
-%   \item \texttt{gl.texParameteri()}: Set filtering/wrapping
-% \end{itemize}
+\textbf{Texture Creation:}
+\begin{itemize}
+  \item \texttt{gl.createTexture()}: Allocate texture object
+  \item \texttt{gl.bindTexture(gl.TEXTURE\_2D, tex)}: Bind for operations
+  \item \texttt{gl.texImage2D()}: Upload pixel data
+  \item \texttt{gl.texParameteri()}: Set filtering/wrapping
+\end{itemize}
 
-% \vspace{0.5cm}
+\vspace{0.3cm}
 
-% \textbf{Slice Texture Update:}
-% \begin{lstlisting}[language=JavaScript]
-% // Create texture from slice data
-% gl.bindTexture(gl.TEXTURE_2D, this.sliceTexture);
-% gl.texImage2D(
-%   gl.TEXTURE_2D, 0, gl.LUMINANCE,
-%   width, height, 0,
-%   gl.LUMINANCE, gl.UNSIGNED_BYTE,
-%   sliceBytes
-% );
-% \end{lstlisting}
+\textbf{Slice Texture Update:}
+\begin{lstlisting}[language=JavaScript, basicstyle=\small\ttfamily]
+// Create texture from slice data
+gl.bindTexture(gl.TEXTURE_2D, this.sliceTexture);
+gl.texImage2D(
+  gl.TEXTURE_2D, 0, gl.LUMINANCE,
+  width, height, 0,
+  gl.LUMINANCE, gl.UNSIGNED_BYTE,
+  sliceBytes
+);
+\end{lstlisting}
 
-% \textbf{Key Parameters:}
-% \begin{itemize}
-%   \item \textbf{LUMINANCE}: Single channel (grayscale)
-%   \item \textbf{UNSIGNED\_BYTE}: 8-bit pixel values
-%   \item \textbf{width, height}: Texture dimensions
-% \end{itemize}
-% \end{frame}
+\vspace{0.3cm}
 
-% \begin{frame}
-% \frametitle{Vertex Buffers and Attributes}
+\textbf{Key Parameters:}
+\begin{itemize}
+  \item \textbf{LUMINANCE}: Single channel (grayscale). Perfect for DICOM!
+  \item \textbf{UNSIGNED\_BYTE}: 8-bit values ($0-255$).
+  \item \textbf{FILTERING}: \texttt{gl.LINEAR} allows the GPU to interpolate between pixels for smooth zooming.
+\end{itemize}
+\end{frame}
 
-% \textbf{Vertex Buffer Object (VBO):}
-% \begin{itemize}
-%   \item GPU memory object storing vertex data
-%   \item \texttt{gl.createBuffer()}: Create buffer
-%   \item \texttt{gl.bindBuffer()}: Bind for operations
-%   \item \texttt{gl.bufferData()}: Upload data to GPU
-% \end{itemize}
+\begin{frame}
+\frametitle{Vertex Buffers and Attributes}
 
-% \vspace{0.5cm}
+\textbf{Vertex Buffer Object (VBO):}
+\begin{itemize}
+  \item GPU memory object storing vertex data
+  \item \texttt{gl.createBuffer()}: Create buffer
+  \item \texttt{gl.bindBuffer()}: Bind for operations
+  \item \texttt{gl.bufferData()}: Upload data to GPU
+\end{itemize}
 
-% \textbf{Vertex Attribute Pointers:}
-% \begin{itemize}
-%   \item \texttt{gl.enableVertexAttribArray()}: Enable attribute
-%   \item \texttt{gl.vertexAttribPointer()}: Describe layout
-%   \item \textbf{Parameters}: Index, size, type, normalized, stride, offset
-% \end{itemize}
+\vspace{0.5cm}
 
-% \vspace{0.5cm}
+\textbf{Vertex Attribute Pointers:}
+\begin{itemize}
+  \item \texttt{gl.enableVertexAttribArray()}: Enable attribute
+  \item \texttt{gl.vertexAttribPointer()}: Describe layout
+  \item \textbf{Parameters}: Index, size, type, normalized, stride, offset
+\end{itemize}
 
-% \textbf{Example:} Position (vec3) + TexCoord (vec2)
-% \begin{itemize}
-%   \item Stride: $3 \times 4 + 2 \times 4 = 20$ bytes
-%   \item Offset for texcoord: $3 \times 4 = 12$ bytes
-% \end{itemize}
-% \end{frame}
+\vspace{0.5cm}
 
-% \begin{frame}[fragile]
-% \frametitle{Rendering Loop}
+\textbf{Example:} Position (vec3) + TexCoord (vec2)
+\begin{itemize}
+  \item Stride: $3 \times 4 + 2 \times 4 = 20$ bytes
+  \item Offset for texcoord: $3 \times 4 = 12$ bytes
+\end{itemize}
+\end{frame}
 
-% \begin{lstlisting}
-% start(): void {
-%   const loop = () => {
-%     // Clear buffers
-%     this.gl.clear(this.gl.COLOR_BUFFER_BIT | 
-%                   this.gl.DEPTH_BUFFER_BIT);
+\begin{frame}[fragile,allowframebreaks]
+\frametitle{Rendering Loop}
+
+\begin{lstlisting}
+start(): void {
+  const loop = () => {
+    // Clear buffers
+    this.gl.clear(this.gl.COLOR_BUFFER_BIT | 
+                  this.gl.DEPTH_BUFFER_BIT);
     
-%     // Render scene
-%     if (this.mesh) {
-%       this.program.use();
-%       this.renderMesh(this.mesh);
-%     }
+    // Render scene
+    if (this.mesh) {
+      this.program.use();
+      this.renderMesh(this.mesh);
+    }
     
-%     // Render slices
-%     if (this.volume) {
-%       this.sliceProgram.use();
-%       this.renderSlices();
-%     }
+    // Render slices
+    if (this.volume) {
+      this.sliceProgram.use();
+      this.renderSlices();
+    }
     
-%     // Request next frame
-%     this.animationId = requestAnimationFrame(loop);
-%   };
+    // Request next frame
+    this.animationId = requestAnimationFrame(loop);
+  };
   
-%   this.animationId = requestAnimationFrame(loop);
-% }
-% \end{lstlisting}
+  this.animationId = requestAnimationFrame(loop);
+}
+\end{lstlisting}
 
-% \textbf{Key Points:}
-% \begin{itemize}
-%   \item \textbf{requestAnimationFrame}: Browser-optimized rendering
-%   \item \textbf{Clear}: Remove previous frame data
-%   \item \textbf{Use}: Activate shader program
-%   \item \textbf{Draw}: Render geometry
-% \end{itemize}
-% \end{frame}
+\textbf{Key Points:}
+\begin{itemize}
+  \item \textbf{requestAnimationFrame}: Browser-optimized rendering
+  \item \textbf{Clear}: Remove previous frame data
+  \item \textbf{Use}: Activate shader program
+  \item \textbf{Draw}: Render geometry
+\end{itemize}
+\end{frame}
 
-% \begin{frame}
-% \frametitle{Depth Testing}
+\begin{frame}
+\frametitle{Depth Testing}
 
-% \textbf{Problem:} Overlapping geometry renders incorrectly without depth info
+\textbf{Problem:} Overlapping geometry renders incorrectly without depth info
 
-% \vspace{0.5cm}
+\vspace{0.5cm}
 
-% \textbf{Solution:} Depth Test (Z-buffering)
-% \begin{itemize}
-%   \item Each pixel stores depth value (distance from camera)
-%   \item Only draw pixel if new depth $<$ stored depth
-%   \item Ensures correct occlusion ordering
-%   \item \texttt{gl.enable(gl.DEPTH\_TEST)}
-%   \item \texttt{gl.depthFunc(gl.LEQUAL)}: Update if less or equal
-% \end{itemize}
+\textbf{Solution:} Depth Test (Z-buffering)
+\begin{itemize}
+  \item Each pixel stores depth value (distance from camera)
+  \item Only draw pixel if new depth $<$ stored depth
+  \item Ensures correct occlusion ordering
+  \item \texttt{gl.enable(gl.DEPTH\_TEST)}
+  \item \texttt{gl.depthFunc(gl.LEQUAL)}: Update if less or equal
+\end{itemize}
 
-% \vspace{0.5cm}
+\vspace{0.5cm}
 
-% \textbf{Configuration:}
-% \begin{itemize}
-%   \item \texttt{NEVER}: Never pass
-%   \item \texttt{LESS}: Pass if new $<$ stored
-%   \item \texttt{EQUAL}: Pass if equal
-%   \item \texttt{LEQUAL}: Pass if $\leq$ (typical)
-%   \item \texttt{GREATER}: Pass if $>$
-%   \item \texttt{ALWAYS}: Always pass
-% \end{itemize}
-% \end{frame}
+\textbf{Configuration:}
+\begin{itemize}
+  \item \texttt{NEVER}: Never pass
+  \item \texttt{LESS}: Pass if new $<$ stored
+  \item \texttt{EQUAL}: Pass if equal
+  \item \texttt{LEQUAL}: Pass if $\leq$ (typical)
+  \item \texttt{GREATER}: Pass if $>$
+  \item \texttt{ALWAYS}: Always pass
+\end{itemize}
+\end{frame}
 
-% \begin{frame}
-% \frametitle{Matrix Transformations}
+\begin{frame}[fragile]
+\frametitle{Matrix Transformations}
 
-% \textbf{Model-View-Projection (MVP) Matrix:}
-% $$\text{gl\_Position} = P \times V \times M \times \text{position}$$
+\textbf{Model-View-Projection (MVP) Matrix:}
+$$\text{gl\_Position} = P \times V \times M \times \text{position}$$
 
-% Where:
-% \begin{itemize}
-%   \item $M$: Model matrix (geometry to world space)
-%   \item $V$: View matrix (world to camera space)
-%   \item $P$: Projection matrix (camera to screen space)
-% \end{itemize}
+Where:
+\begin{itemize}
+  \item $M$: Model matrix (geometry to world space)
+  \item $V$: View matrix (world to camera space)
+  \item $P$: Projection matrix (camera to screen space)
+\end{itemize}
 
-% \vspace{0.5cm}
+\vspace{0.5cm}
 
-% \textbf{Camera Implementation:}
-% \begin{itemize}
-%   \item Spherical coordinates: azimuth, polar, distance
-%   \item Eye position: $(r \sin\phi \cos\theta, r \sin\phi \sin\theta, r \cos\phi)$
-%   \item Look-at: Compute view matrix from eye, center, up
-%   \item Perspective: Configurable FOV, aspect ratio, near/far planes
-% \end{itemize}
-% \end{frame}
+\textbf{Camera Implementation:}
+\begin{itemize}
+  \item Spherical coordinates: azimuth, polar, distance
+  \item Eye position: $(r \sin\phi \cos\theta, r \sin\phi \sin\theta, r \cos\phi)$
+  \item Look-at: Compute view matrix from eye, center, up
+  \item Perspective: Configurable FOV, aspect ratio, near/far planes
+\end{itemize}
+\end{frame}

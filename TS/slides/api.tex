@@ -3,208 +3,88 @@
 %============================
 \section{WebGL APIs Used}
 
-\begin{frame}
-\frametitle{Core WebGL APIs}
-
-\textbf{Rendering Context:}
+\begin{frame}{Core WebGL Context \& Shaders}
+\textbf{The Rendering Context}
 \begin{itemize}
-  \item \texttt{canvas.getContext('webgl')}: Get context
-  \item \texttt{gl.viewport()}: Set viewport
-  \item \texttt{gl.clear()}: Clear buffers
-  \item \texttt{gl.enable()/disable()}: Enable capabilities
+  \item \texttt{canvas.getContext('webgl')}: Gateway to the GPU.
+  \item \texttt{gl.viewport()}: Defines the drawing "rectangle" in pixels.
 \end{itemize}
 
-\vspace{0.3cm}
+\hrule % Visual separator
+\vspace{0.5em}
 
-\textbf{Shader Management:}
+\textbf{Shader Management Pipeline}
+\begin{enumerate}
+  \item \textbf{Create}: \texttt{gl.createShader(type)}
+  \item \textbf{Source}: \texttt{gl.shaderSource()} (Injects GLSL string)
+  \item \textbf{Compile}: \texttt{gl.compileShader()} $\to$ GPU machine code
+  \item \textbf{Link}: \texttt{gl.linkProgram()} (Combines Vertex + Fragment)
+\end{enumerate}
+
+\begin{block}{Pro-Tip}
+Always check \texttt{gl.getShaderParameter(..., gl.COMPILE\_STATUS)} to debug GLSL syntax errors!
+\end{block}
+\end{frame}
+
+\begin{frame}{Buffer \& Texture Operations}
+\textbf{Data Storage (VBOs)}
 \begin{itemize}
-  \item \texttt{gl.createShader(type)}: Create shader object
-  \item \texttt{gl.shaderSource()}: Set shader source
-  \item \texttt{gl.compileShader()}: Compile to GPU bytecode
-  \item \texttt{gl.createProgram()}: Create program object
-  \item \texttt{gl.attachShader()}: Attach compiled shaders
-  \item \texttt{gl.linkProgram()}: Link shader pair
-  \item \texttt{gl.useProgram()}: Activate program
+  \item \texttt{STATIC\_DRAW}: Best for the static volume bounding box.
+  \item \texttt{DYNAMIC\_DRAW}: Ideal for the 2D slice quad if it moves.
+\end{itemize}
+
+\hrule
+\vspace{0.5em}
+
+\textbf{Texture Mapping (The Heart of the Project)}
+\begin{itemize}
+  \item \texttt{gl.texImage2D()}: This is where our \textbf{Uint8Array} is uploaded.
+  \item \textbf{Format}: \texttt{gl.LUMINANCE} (Saves memory for grayscale CT scans).
+\end{itemize}
+
+
+
+\begin{exampleblock}{Filtering}
+Use \texttt{gl.LINEAR} for \texttt{MAG\_FILTER} to get smooth interpolation between pixels when zooming into a medical image.
+\end{exampleblock}
+\end{frame}
+
+\begin{frame}{Vertex Attributes \& Uniforms}
+\textbf{The Bridge: \texttt{vertexAttribPointer}}
+This command tells the GPU how to read our interleaved buffer:
+\[ \text{Offset} = 0, \text{Stride} = 20 \text{ bytes} \]
+
+\begin{itemize}
+  \item \texttt{gl.enableVertexAttribArray()}: "Turns on" a shader variable.
+\end{itemize}
+
+\hrule
+\vspace{0.5em}
+
+\textbf{Global Constants (Uniforms)}
+\begin{itemize}
+  \item \texttt{gl.uniformMatrix4fv()}: Pass the Model-View-Projection (MVP) matrix.
+  \item \texttt{gl.uniform1i()}: Tells the fragment shader which texture unit to sample.
 \end{itemize}
 \end{frame}
 
-\begin{frame}
-\frametitle{Buffer Operations}
+\begin{frame}{Drawing Primitives}
 
-\textbf{Vertex/Index Buffers:}
-\begin{itemize}
-  \item \texttt{gl.createBuffer()}: Create buffer object
-  \item \texttt{gl.bindBuffer(target, buf)}: Bind for operations
-  \item \texttt{gl.bufferData(target, data, usage)}: Upload data
-  \item \texttt{gl.bufferSubData()}: Update portion of buffer
-\end{itemize}
 
-\vspace{0.3cm}
+\textbf{How we draw the components:}
+\begin{table}
+\small
+\begin{tabular}{lll}
+\hline
+\textbf{Object} & \textbf{Mode} & \textbf{API Call} \\ \hline
+Volume Border   & \texttt{LINE\_LOOP} & \texttt{gl.drawArrays} \\
+Mesh Surfaces   & \texttt{TRIANGLES} & \texttt{gl.drawElements} \\
+Slices (Quads)  & \texttt{TRIANGLE\_STRIP} & \texttt{gl.drawArrays} \\ \hline
+\end{tabular}
+\end{table}
 
-\textbf{Buffer Targets:}
-\begin{itemize}
-  \item \texttt{ARRAY\_BUFFER}: Vertex attributes
-  \item \texttt{ELEMENT\_ARRAY\_BUFFER}: Index data
-\end{itemize}
-
-\vspace{0.3cm}
-
-\textbf{Buffer Usage Hints:}
-\begin{itemize}
-  \item \texttt{STATIC\_DRAW}: One-time upload, read many times
-  \item \texttt{DYNAMIC\_DRAW}: Frequent updates (slice data)
-  \item \texttt{STREAM\_DRAW}: One or few reads
-\end{itemize}
+\vfill
+\begin{alertblock}{DrawElements vs DrawArrays}
+We use \texttt{drawElements} for meshes to reuse vertices via index buffers, reducing memory bandwidth.
+\end{alertblock}
 \end{frame}
-
-\begin{frame}
-\frametitle{Texture Operations}
-
-\textbf{Texture Creation \& Management:}
-\begin{itemize}
-  \item \texttt{gl.createTexture()}: Create texture object
-  \item \texttt{gl.bindTexture(target, tex)}: Bind for operations
-  \item \texttt{gl.texImage2D()}: Upload pixel data
-  \item \texttt{gl.activeTexture()}: Select texture unit
-\end{itemize}
-
-\vspace{0.3cm}
-
-\textbf{Texture Parameters:}
-\begin{itemize}
-  \item \texttt{TEXTURE\_MIN\_FILTER}: Downsampling (LINEAR, NEAREST)
-  \item \texttt{TEXTURE\_MAG\_FILTER}: Upsampling
-  \item \texttt{TEXTURE\_WRAP\_S/T}: Edge wrapping (CLAMP, REPEAT)
-\end{itemize}
-
-\vspace{0.3cm}
-
-\textbf{Texture Formats:}
-\begin{itemize}
-  \item \texttt{LUMINANCE}: Single channel (grayscale)
-  \item \texttt{RGB}: Three channels
-  \item \texttt{RGBA}: Four channels with alpha
-\end{itemize}
-\end{frame}
-
-\begin{frame}
-\frametitle{Vertex Attribute APIs}
-
-\textbf{Attribute Configuration:}
-\begin{itemize}
-  \item \texttt{gl.enableVertexAttribArray(index)}: Enable attribute
-  \item \texttt{gl.vertexAttribPointer(index, size, type, normalized, stride, offset)}: Describe layout
-  \item \texttt{gl.disableVertexAttribArray(index)}: Disable attribute
-\end{itemize}
-
-\vspace{0.3cm}
-
-\textbf{Attribute Parameters:}
-\begin{itemize}
-  \item \textbf{index}: Attribute location in shader
-  \item \textbf{size}: Components per element (1-4)
-  \item \textbf{type}: Data type (FLOAT, UNSIGNED\_BYTE, etc.)
-  \item \textbf{normalized}: Convert integer to float [0,1]
-  \item \textbf{stride}: Bytes between elements
-  \item \textbf{offset}: Byte offset from buffer start
-\end{itemize}
-
-\vspace{0.3cm}
-
-\textbf{Example:} Position (vec3) at offset 0, stride 20 bytes:
-\begin{itemize}
-  \item \texttt{gl.vertexAttribPointer(0, 3, FLOAT, false, 20, 0)}
-\end{itemize}
-\end{frame}
-
-\begin{frame}
-\frametitle{Uniform APIs}
-
-\textbf{Uniform Assignment:}
-\begin{itemize}
-  \item \texttt{gl.getUniformLocation(program, name)}: Get uniform handle
-  \item \texttt{gl.uniform1f/2f/3f/4f()}: Scalar/vector uniforms
-  \item \texttt{gl.uniform1i/2i/3i/4i()}: Integer uniforms
-  \item \texttt{gl.uniformMatrix4fv()}: 4×4 matrix
-\end{itemize}
-
-\vspace{0.3cm}
-
-\textbf{Uniform Scope:}
-\begin{itemize}
-  \item \textbf{Global}: Same for all vertices/fragments
-  \item \textbf{Constant}: Per shader program
-  \item \textbf{Per-frame}: Update each render frame
-\end{itemize}
-
-\vspace{0.3cm}
-
-\textbf{Uses in This Project:}
-\begin{itemize}
-  \item \texttt{u\_matrix}: MVP transformation matrix
-  \item \texttt{u\_texture}: Sampler for slice texture
-  \item \texttt{u\_color}: Fixed geometry color
-\end{itemize}
-\end{frame}
-
-\begin{frame}
-\frametitle{Drawing Primitives}
-
-\textbf{Rendering Commands:}
-\begin{itemize}
-  \item \texttt{gl.drawArrays(mode, first, count)}: Draw array vertices
-  \item \texttt{gl.drawElements(mode, count, type, offset)}: Draw indexed vertices
-\end{itemize}
-
-\vspace{0.3cm}
-
-\textbf{Primitive Modes:}
-\begin{itemize}
-  \item \texttt{POINTS}: Individual vertices
-  \item \texttt{LINES}: Line segments (2 vertices per line)
-  \item \texttt{LINE\_LOOP}: Connected line segments (closes)
-  \item \texttt{LINE\_STRIP}: Connected line segments (no close)
-  \item \texttt{TRIANGLES}: Triangle meshes (3 vertices per triangle)
-  \item \texttt{TRIANGLE\_STRIP}: Continuous triangle strip
-  \item \texttt{TRIANGLE\_FAN}: Fan of triangles
-\end{itemize}
-
-\vspace{0.3cm}
-
-\textbf{In This Project:}
-\begin{itemize}
-  \item \texttt{TRIANGLES}: Mesh rendering
-  \item \texttt{TRIANGLE\_STRIP}: Quad (textured slice)
-  \item \texttt{LINE\_LOOP}: Bounding box edges
-\end{itemize}
-\end{frame}
-
-\begin{frame}
-\frametitle{Advanced Features Used}
-
-\textbf{Depth Test:}
-\begin{itemize}
-  \item \texttt{gl.enable(gl.DEPTH\_TEST)}: Enable depth comparison
-  \item \texttt{gl.depthFunc(func)}: Set comparison function
-  \item Ensures correct rendering order
-\end{itemize}
-
-\vspace{0.3cm}
-
-\textbf{Viewport:}
-\begin{itemize}
-  \item \texttt{gl.viewport(x, y, width, height)}: Define render area
-  \item Maps NDC coordinates to pixel coordinates
-\end{itemize}
-
-\vspace{0.3cm}
-
-\textbf{Framebuffer Clearing:}
-\begin{itemize}
-  \item \texttt{gl.clear(mask)}: Clear specified buffers
-  \item \texttt{gl.COLOR\_BUFFER\_BIT}: Clear color
-  \item \texttt{gl.DEPTH\_BUFFER\_BIT}: Clear depth
-  \item \texttt{gl.clearColor()}: Set clear color
-\end{itemize}
-\end{frame}
-
