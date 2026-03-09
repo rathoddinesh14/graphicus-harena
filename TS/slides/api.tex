@@ -1,9 +1,9 @@
 %============================
-% SECTION 7: KEY APIS
+% CHAPTER 7: API INTEGRATION
 %============================
-\section{WebGL APIs Used}
+\section{API Integration: Bringing It All Together}
 
-\begin{frame}{Core WebGL Context \& Shaders}
+\begin{frame}{Core WebGL APIs: The Essential Toolkit}
 \textbf{The Rendering Context}
 \begin{itemize}
   \item \texttt{canvas.getContext('webgl')}: Gateway to the GPU.
@@ -24,9 +24,12 @@
 \begin{block}{Pro-Tip}
 Always check \texttt{gl.getShaderParameter(..., gl.COMPILE\_STATUS)} to debug GLSL syntax errors!
 \end{block}
+
+\knowledgecheck{Error Handling}
+What happens if a shader fails to compile? How would you debug this in a medical imaging application?
 \end{frame}
 
-\begin{frame}{Buffer \& Texture Operations}
+\begin{frame}{Buffer \& Texture Operations: Data Management}
 \textbf{Data Storage (VBOs)}
 \begin{itemize}
   \item \texttt{STATIC\_DRAW}: Best for the static volume bounding box.
@@ -38,15 +41,16 @@ Always check \texttt{gl.getShaderParameter(..., gl.COMPILE\_STATUS)} to debug GL
 
 \textbf{Texture Mapping (The Heart of the Project)}
 \begin{itemize}
-  \item \texttt{gl.texImage2D()}: This is where our \textbf{Uint8Array} is uploaded.
+  \item \texttt{gl.texImage2D()}: This is where our \textbf{Uint8Array} slice data gets uploaded.
   \item \textbf{Format}: \texttt{gl.LUMINANCE} (Saves memory for grayscale CT scans).
 \end{itemize}
-
-
 
 \begin{exampleblock}{Filtering}
 Use \texttt{gl.LINEAR} for \texttt{MAG\_FILTER} to get smooth interpolation between pixels when zooming into a medical image.
 \end{exampleblock}
+
+\clinicalexample{Memory Optimization}
+Using LUMINANCE format saves 75\% memory compared to RGBA. Critical for large medical volumes that must fit in GPU memory.
 \end{frame}
 
 \begin{frame}{Vertex Attributes \& Uniforms}
@@ -87,4 +91,8 @@ Slices (Quads)  & \texttt{TRIANGLE\_STRIP} & \texttt{gl.drawArrays} \\ \hline
 \begin{alertblock}{DrawElements vs DrawArrays}
 We use \texttt{drawElements} for meshes to reuse vertices via index buffers, reducing memory bandwidth.
 \end{alertblock}
+
+\begin{block}{The Complete Integration}
+From DICOM files to GPU-accelerated display, all orchestrated through these WebGL APIs working in harmony.
+\end{block}
 \end{frame}

@@ -1,75 +1,174 @@
 %============================
-% SECTION 1: INTRODUCTION
+% CHAPTER 1: THE CHALLENGE
 %============================
-\section{Introduction}
+\section{The Challenge: Medical Data Complexity}
 
 \begin{frame}
-\frametitle{What is DICOM?}
-\begin{itemize}
-  \item \textbf{DICOM} = Digital Imaging and Communications in Medicine
-  \item Standard format for medical imaging data
-  \item Contains both metadata and pixel data
-  \item Common in CT, MRI, X-ray, and other modalities
-  \item Multiple files form a 3D volume (one file per slice)
-\end{itemize}
+\frametitle{The Story Begins: A Radiologist's Dilemma}
 
-\vspace{1cm}
+\begin{columns}[T]
+\begin{column}{0.6\textwidth}
+  \begin{itemize}
+    \item \textbf{Dr. Sarah Chen} is reviewing a CT scan of a patient's chest
+    \item She needs to examine the lungs from multiple angles
+    \item Traditional 2D viewers limit her ability to understand 3D relationships
+    \item \textbf{Question:} How can we bring 3D visualization to the web browser?
+  \end{itemize}
+\end{column}
+\begin{column}{0.35\textwidth}
+  \begin{center}
+    \begin{tikzpicture}[scale=0.8]
+      % Simple lung illustration
+      \fill[medicalblue!30] (0,0) ellipse (1 and 1.5);
+      \fill[medicalblue!30] (2,0) ellipse (1 and 1.5);
+      \draw[medicalblue, thick] (0,0) ellipse (1 and 1.5);
+      \draw[medicalblue, thick] (2,0) ellipse (1 and 1.5);
+      \node[medicalred] at (1,0) {\textbf{?}};
+    \end{tikzpicture}
+    \vspace{0.5cm}
+    {\small\color{medicalgray}Radiologist's View}
+  \end{center}
+\end{column}
+\end{columns}
 
-\textbf{Goal:} Build an interactive web-based viewer that:
-\begin{enumerate}
-  \item Reads multiple DICOM files
-  \item Constructs a 3D volume data structure
-  \item Renders orthogonal slices (axial, sagittal, coronal)
-  \item Uses WebGL for GPU-accelerated rendering
-\end{enumerate}
+\vspace{0.5cm}
+\begin{block}{The Core Challenge}
+Medical imaging generates \textbf{huge datasets} (hundreds of MB) that need to be processed and visualized in real-time within the constraints of web browsers.
+\end{block}
+\end{frame}
+
+\begin{frame}
+\frametitle{What is DICOM? The Language of Medical Imaging}
+
+\begin{columns}[T]
+\begin{column}{0.5\textwidth}
+  \begin{itemize}
+    \item \textbf{DICOM} = Digital Imaging and Communications in Medicine
+    \item International standard for medical imaging data
+    \item Contains both \textbf{metadata} and \textbf{pixel data}
+    \item Common in CT, MRI, X-ray, and ultrasound
+    \item \textbf{One file per slice} forms a 3D volume
+  \end{itemize}
+\end{column}
+\begin{column}{0.45\textwidth}
+  \begin{center}
+    \begin{tikzpicture}[scale=0.7]
+      % DICOM file structure
+      \draw[fill=medicalblue!20, draw=medicalblue, thick, rounded corners] (0,0) rectangle (3,2);
+      \node[medicalblue, font=\bfseries] at (1.5,1.5) {DICOM File};
+      
+      % Metadata section
+      \draw[fill=softgreen!30, draw=medicalgreen] (0.2,0.2) rectangle (2.8,1);
+      \node[medicalgreen, font=\small] at (1.5,0.6) {Metadata};
+      \node[font=\tiny] at (1.5,0.3) {(Patient Info, Image Position)};
+      
+      % Pixel data section
+      \draw[fill=softblue!30, draw=medicalblue] (0.2,1.2) rectangle (2.8,1.8);
+      \node[medicalblue, font=\small] at (1.5,1.5) {Pixel Data};
+      \node[font=\tiny] at (1.5,1.2) {(512×512 grayscale values)};
+    \end{tikzpicture}
+  \end{center}
+\end{column}
+\end{columns}
+
+\clinicalexample{Lung Cancer Screening}
+A single chest CT scan might contain 200+ DICOM files, each representing a 1-2mm thick slice through the patient's thorax. The radiologist needs to mentally reconstruct these into a 3D understanding of the anatomy.
+\end{frame}
+
+\begin{frame}
+\frametitle{Our Solution: Graphicus-Harena}
+
+\begin{columns}[T]
+\begin{column}{0.6\textwidth}
+  \begin{enumerate}
+    \item \textbf{Parse} multiple DICOM files into a coherent 3D volume
+    \item \textbf{Extract} orthogonal slices (axial, sagittal, coronal) on demand
+    \item \textbf{Render} using WebGL for GPU-accelerated visualization
+    \item \textbf{Interact} with mouse controls for real-time exploration
+  \end{enumerate}
+\end{column}
+\begin{column}{0.35\textwidth}
+  \begin{center}
+    \begin{tikzpicture}[scale=0.6]
+      % 3D volume with slices
+      \draw[gray!30, dashed] (0,0,0) -- (2,0,0) -- (2,2,0) -- (0,2,0) -- cycle;
+      \draw[gray!30, dashed] (0,0,1.5) -- (2,0,1.5) -- (2,2,1.5) -- (0,2,1.5) -- cycle;
+      
+      % Axial slice
+      \draw[fill=medicalgreen!20, opacity=0.7] (0,0,0.75) -- (2,0,0.75) -- (2,2,0.75) -- (0,2,0.75) -- cycle;
+      
+      % Sagittal slice
+      \draw[fill=medicalred!20, opacity=0.7] (1,0,0) -- (1,2,0) -- (1,2,1.5) -- (1,0,1.5) -- cycle;
+      
+      % Labels
+      \node[medicalgreen, font=\tiny] at (1,1,0.75) {Axial};
+      \node[medicalred, font=\tiny] at (1,1,0.5) {Sagittal};
+    \end{tikzpicture}
+    \vspace{0.3cm}
+    {\small\color{medicalgray}Multi-planar Reconstruction}
+  \end{center}
+\end{column}
+\end{columns}
+
+\vspace{0.5cm}
+\knowledgecheck{Why WebGL?}
+Why do we need GPU acceleration for medical imaging? What happens if we try to render 500 slices at 30 FPS using only JavaScript?
 \end{frame}
 
 % Ensure these are in your preamble:
 % \usetikzlibrary{positioning, arrows.meta, shadows}
 
-\begin{frame}[fragile]
-\frametitle{Architecture Overview}
+\begin{frame}
+\frametitle{Architecture Overview: The Complete Pipeline}
+
 \begin{center}
 \begin{tikzpicture}[
-    % Reduced horizontal (1.2cm) and vertical (1.0cm) spacing
-    node distance=1.0cm and 1.2cm,
-    force/.style={
-        rectangle, rounded corners, draw=blue!80, fill=blue!5, 
-        thick, inner sep=5pt, text centered, 
-        minimum width=2.2cm, % Slightly narrower boxes
-        minimum height=0.8cm,
-        drop shadow={opacity=0.2}, 
-        font=\sffamily\scriptsize % Smaller font to save space
+    node distance=1.5cm and 2cm,
+    block/.style={
+        rectangle,
+        rounded corners,
+        draw=medicalblue!70,
+        fill=softblue!10,
+        thick,
+        minimum width=2.6cm,
+        minimum height=1cm,
+        align=center,
+        font=\scriptsize
     },
-    arrow/.style={-Stealth, thick, draw=gray!60}
+    arrow/.style={->, thick}
 ]
-  % Top Row: Ingestion
-  \node[force] (dicom) {DICOM Files};
-  \node[force, right=of dicom] (parser) {Parser};
-  \node[force, right=of parser] (volume) {Volume Data};
-  
-  % Bottom Row: Rendering
-  \node[force, below=of volume] (slices) {Slice Extraction};
-  \node[force, left=of slices] (webgl) {WebGL Renderer};
-  \node[force, left=of webgl] (display) {GPU Display};
 
-  % Connecting Arrows
-  \draw[arrow] (dicom) -- (parser);
-  \draw[arrow] (parser) -- (volume);
-  \draw[arrow] (volume) -- (slices);
-  \draw[arrow] (slices) -- (webgl);
-  \draw[arrow] (webgl) -- (display);
+% Top row
+\node[block] (dicom) {DICOM Files\\(Binary Data)};
+\node[block, right=of dicom] (parser) {Parser\\(dicom-parser.js)};
+\node[block, right=of parser] (volume) {Volume Data\\(Float32Array)};
 
-  % Optional: Visual flow indicator
-  \draw[arrow, dashed, color=gray!40] (volume.south) -- (slices.north);
+% Bottom row
+\node[block, below=of volume] (slices) {Slice Extraction\\(Uint8Array)};
+\node[block, left=of slices] (webgl) {WebGL Renderer\\(GPU Pipeline)};
+\node[block, left=of webgl] (display) {Canvas Display\\(Interactive View)};
+
+% Arrows
+\draw[arrow] (dicom) -- (parser);
+\draw[arrow] (parser) -- (volume);
+\draw[arrow] (volume) -- (slices);
+\draw[arrow] (slices) -- (webgl);
+\draw[arrow] (webgl) -- (display);
 
 \end{tikzpicture}
 \end{center}
 
-\begin{exampleblock}{Key Stages}
+\end{frame}
+
+\begin{frame}
+\begin{exampleblock}{Key Technologies}
 \begin{itemize}
     \item \textbf{Data:} Normalizing diverse DICOM tags into a consistent voxel grid.
     \item \textbf{Compute:} Leveraging WebGL for hardware-accelerated interpolation.
+    \item \textbf{UI:} React components for file loading and parameter controls.
 \end{itemize}
 \end{exampleblock}
+
+\knowledgecheck{Data Flow}
+Trace how a single voxel from a DICOM file becomes a pixel on your screen. What transformations occur along the way?
 \end{frame}

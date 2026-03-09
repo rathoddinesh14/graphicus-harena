@@ -1,29 +1,28 @@
 %============================
-% SECTION 8: SUMMARY
+% CHAPTER 6: THE SOLUTION
 %============================
-\section{Summary}
+\section{Summary: From Challenge to Solution}
 
 \begin{frame}[fragile]
-\frametitle{Complete Pipeline Overview}
+\frametitle{The Complete Journey: DICOM to Display}
 \begin{center}
 \resizebox{0.9\textwidth}{!}{
 \begin{tikzpicture}[
     node distance=0.5cm and 1.0cm,
-    % Renamed 'step' to 'flowstep' to avoid keyword conflict
-    flowstep/.style={rectangle, rounded corners, draw=blue!60, fill=blue!5, thick, text width=3.5cm, align=center, font=\sffamily\scriptsize, minimum height=0.8cm},
+    flowstep/.style={rectangle, rounded corners, draw=medicalblue!60, fill=softblue!20, thick, text width=3.5cm, align=center, font=\sffamily\scriptsize, minimum height=0.8cm},
     arrow/.style={-Stealth, thick, gray!60}
 ]
   % Column 1
-  \node[flowstep] (dicom) {DICOM Files};
-  \node[flowstep, below=of dicom] (parse) {\textbf{Parsing}\\dicom-parser};
-  \node[flowstep, below=of parse] (volume) {\textbf{Construction}\\Volume Float32Array};
-  \node[flowstep, below=of volume] (slice) {\textbf{Extraction}\\Slice Uint8Array};
+  \node[flowstep] (dicom) {DICOM Files\\(Binary Medical Data)};
+  \node[flowstep, below=of dicom] (parse) {\textbf{Parsing}\\dicom-parser.js\\(Extract Metadata)};
+  \node[flowstep, below=of parse] (volume) {\textbf{Volume Construction}\\Float32Array\\(3D Voxel Grid)};
+  \node[flowstep, below=of volume] (slice) {\textbf{Slice Extraction}\\Uint8Array\\(2D Cross-Sections)};
   
   % Column 2
-  \node[flowstep, right=1.5cm of dicom] (texture) {\textbf{GPU Upload}\\texImage2D};
-  \node[flowstep, below=of texture] (quad) {\textbf{Geometry}\\Create Quad};
-  \node[flowstep, below=of quad] (shader) {\textbf{Processing}\\Vertex + Fragment};
-  \node[flowstep, below=of shader] (render) {\textbf{Display}\\requestAnimationFrame};
+  \node[flowstep, right=1.5cm of dicom] (texture) {\textbf{GPU Upload}\\texImage2D\\(Texture Memory)};
+  \node[flowstep, below=of texture] (quad) {\textbf{Geometry}\\Create Quad\\(Vertex Buffer)};
+  \node[flowstep, below=of quad] (shader) {\textbf{Shaders}\\GLSL Programs\\(GPU Processing)};
+  \node[flowstep, below=of shader] (render) {\textbf{Canvas Display}\\requestAnimationFrame\\(Interactive View)};
 
   % Connections
   \draw[arrow] (dicom) -- (parse);
@@ -39,41 +38,63 @@
 \end{tikzpicture}
 }
 \end{center}
+
+\begin{alertblock}{The Transformation}
+From \textbf{200 DICOM files} ($\approx$ 200MB) to \textbf{interactive 3D visualization} in the browser, all in real-time!
+\end{alertblock}
 \end{frame}
 
-\begin{frame}{Performance \& Key Takeaways}
+\begin{frame}{Performance \& Key Achievements}
 \begin{itemize}
     \item \textbf{Memory Footprint}: Approximately \textbf{200 MB} for a standard CT volume ($512 \times 512 \times 200$).
-    \item \textbf{Complexity}:
-    \begin{itemize}
-        \item Parsing/Building: $O(N)$ voxels (One-time).
-        \item Slice Extraction: $O(W \times H)$ (Real-time).
-    \end{itemize}
-    \item \textbf{Efficiency}: Leverages GPU hardware interpolation for smooth 2D/3D viewing.
+    \item \textbf{Real-time Rendering}: 60 FPS interactive viewing with WebGL GPU acceleration.
+    \item \textbf{Cross-platform}: Works on any device with a modern web browser.
+    \item \textbf{Medical Accuracy}: Preserves Hounsfield Units and spatial relationships.
 \end{itemize}
 
+\vspace{0.5cm}
 
+\textbf{Technical Highlights:}
+\begin{itemize}
+  \item \textbf{Data Pipeline}: DICOM parsing $\rightarrow$ Volume construction $\rightarrow$ Slice extraction
+  \item \textbf{GPU Pipeline}: Texture upload $\rightarrow$ Shader processing $\rightarrow$ Canvas display
+  \item \textbf{User Experience}: Orthogonal views with windowing controls
+\end{itemize}
 
-\begin{block}{Advantage}
-Web-based delivery allows for diagnostic-quality visualization on any device without software installation.
+\begin{block}{Impact}
+Web-based delivery allows for diagnostic-quality visualization on any device without software installation, democratizing access to advanced medical imaging tools.
 \end{block}
 \end{frame}
 
 \begin{frame}[plain]
 \begin{center}
     \vspace{1.5cm}
-    \LARGE \textbf{Questions?}
+    \LARGE \textbf{Dr. Chen's Success!}
+    
+    \vspace{0.5cm}
+    \large
+    Graphicus-Harena has transformed medical imaging:
+    
+    \vspace{0.5cm}
+    \begin{itemize}
+      \item \textbf{From} static 2D images \textbf{to} interactive 3D exploration
+      \item \textbf{From} desktop software \textbf{to} web-based accessibility  
+      \item \textbf{From} complex workflows \textbf{to} intuitive interfaces
+    \end{itemize}
     
     \vspace{1cm}
     \normalsize
+    \textbf{Questions?}
+    
+    \vspace{0.5cm}
     Code and Documentation:\\
     \begin{beamercolorbox}[sep=8pt,center,rounded=true]{title}
         \texttt{github.com/rathoddinesh14/graphicus-harena}
     \end{beamercolorbox}
     
-    \vspace{1cm}
+    \vspace{0.5cm}
     \scriptsize
-    \textbf{Project Graphicus-Harena} \\
+    \textbf{Graphicus-Harena Project} \\
     Building the future of browser-based medical imaging.
 \end{center}
 \end{frame}

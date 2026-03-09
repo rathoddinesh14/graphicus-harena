@@ -1,41 +1,75 @@
 %============================
-% SECTION 2: DICOM PARSING
+% CHAPTER 2: DICOM PARSING
 %============================
-\section{Reading DICOM Data}
+\section{DICOM Parsing: Decoding Medical Data}
 
 \begin{frame}
-\frametitle{DICOM File Structure}
-DICOM files are binary with tagged structure:
+\frametitle{Chapter 2: Cracking the DICOM Code}
 
-\begin{itemize}
-  \item \textbf{Group and Element tags}: (XXXX, XXXX) in hexadecimal
-  \item \textbf{Value Representation (VR)}: Data type (UI, CS, LO, US, OW, etc.)
-  \item \textbf{Length}: Bytes in the value
-  \item \textbf{Value}: Actual data
-\end{itemize}
+\begin{columns}[T]
+\begin{column}{0.6\textwidth}
+  \textbf{Dr. Chen's Challenge:} "I have 200 DICOM files from a chest CT. How do I read them?"
+  
+  \vspace{0.5cm}
+  DICOM files are \textbf{binary} with \textbf{tagged structure}:
+  \begin{itemize}
+    \item \textbf{Group and Element tags}: (XXXX, XXXX) in hexadecimal
+    \item \textbf{Value Representation (VR)}: Data type indicator
+    \item \textbf{Length}: Bytes in the value field
+    \item \textbf{Value}: The actual medical data
+  \end{itemize}
+\end{column}
+\begin{column}{0.35\textwidth}
+  \begin{center}
+    \begin{tikzpicture}[scale=0.8]
+      % Binary data visualization
+      \foreach \i in {0,...,7} {
+        \draw[fill=medicalblue!\i0] (\i*0.3,0) rectangle (\i*0.3+0.25,0.5);
+        \node[font=\tiny] at (\i*0.3+0.125,0.25) {\i};
+      }
+      \node[medicalred, font=\small] at (1.2,0.7) {Tag: (0028,0010)};
+      \node[medicalgreen, font=\small] at (1.2,-0.2) {Value: 512};
+    \end{tikzpicture}
+    \vspace{0.3cm}
+    {\small\color{medicalgray}Binary DICOM Structure}
+  \end{center}
+\end{column}
+\end{columns}
 
-\vspace{0.5cm}
-
-\textbf{Key DICOM Tags for Image Slices:}
-\small
-\begin{tabular}{|l|l|}
-\hline
-\textbf{Tag} & \textbf{Description} \\
-\hline
-(0028,0010) & Rows (height) \\
-(0028,0011) & Columns (width) \\
-(0028,0100) & Bits Allocated (8 or 16) \\
-(0020,0013) & Instance Number \\
-(0020,0032) & Image Position Patient (x, y, z) \\
-(7FE0,0010) & Pixel Data (binary image) \\
-\hline
-\end{tabular}
+\clinicalexample{Image Dimensions}
+A chest CT slice might be 512×512 pixels. The DICOM tag (0028,0010) stores the height (512), while (0028,0011) stores the width.
 \end{frame}
 
-\begin{frame}[fragile]{DICOM Parsing: Metadata}
+\begin{frame}
+\frametitle{Key DICOM Tags: The Essential Metadata}
+
+\begin{table}
+\small
+\centering
+\rowcolors{2}{softblue!20}{white}
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Tag} & \textbf{Description} & \textbf{Example Value} \\
+\midrule
+(0028,0010) & Rows (Image Height) & 512 \\
+(0028,0011) & Columns (Image Width) & 512 \\
+(0028,0100) & Bits Allocated & 16 (for CT/MRI) \\
+(0020,0013) & Instance Number & 45 (slice position) \\
+(0020,0032) & Image Position Patient & "100.5\\50.2\\-25.0" \\
+(7FE0,0010) & Pixel Data & Binary image bytes \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\vspace{0.5cm}
+\knowledgecheck{Why Instance Number?}
+Why do we need both Image Position Patient and Instance Number? What happens if slices aren't sorted correctly?
+\end{frame}
+
+\begin{frame}[fragile]{DICOM Parsing: Extracting Metadata}
 \begin{columns}
 \begin{column}{0.5\textwidth}
-\begin{lstlisting}
+\begin{lstlisting}[language=JavaScript]
 // Extract Header Tags
 const rows = dataSet.uint16('x00280010');
 const cols = dataSet.uint16('x00280011');
@@ -52,10 +86,13 @@ const bits = dataSet.uint16('x00280100');
 \end{itemize}
 \end{column}
 \end{columns}
+
+\clinicalexample{CT Scan Parameters}
+A typical chest CT: 512×512 pixels per slice, 16 bits per pixel, 200 slices total. This gives us 512×512×200 = 52.4 million voxels to process!
 \end{frame}
 
-\begin{frame}[fragile]{DICOM Parsing: Pixel Data}
-\begin{lstlisting}
+\begin{frame}[fragile]{DICOM Parsing: Pixel Data Extraction}
+\begin{lstlisting}[language=JavaScript]
 // Locate the Pixel Data Element (7FE0,0010)
 const pixelElement = dataSet.elements.x7fe00010;
 
@@ -67,13 +104,16 @@ const pixelData = new Uint16Array(
 );
 \end{lstlisting}
 \vfill
-\begin{alertblock}{Performance Note}
-Using \texttt{Uint16Array} on the existing \texttt{buffer} prevents a full memory copy, which is critical when loading 500+ slices.
+\begin{alertblock}{Memory Efficiency Critical}
+Using \texttt{Uint16Array} on the existing \texttt{buffer} prevents a full memory copy, which is critical when loading 500+ slices in a web browser.
 \end{alertblock}
+
+\knowledgecheck{Data Types}
+Why do we use Uint16Array for CT data? What would happen if we used Uint8Array instead?
 \end{frame}
 
-\begin{frame}[fragile]{DICOM Parsing: Spatial Context}
-\begin{lstlisting}
+\begin{frame}[fragile]{DICOM Parsing: Spatial Positioning}
+\begin{lstlisting}[language=JavaScript]
 // Image Position (Patient) Tag
 const posStr = dataSet.string('x00200032');
 const [x, y, z] = posStr.split(' ').map(Number);
@@ -83,19 +123,58 @@ const [x, y, z] = posStr.split(' ').map(Number);
     \item \textbf{Image Position (Patient):} Specifies the $x, y, z$ coordinates of the upper left hand corner of the slice.
     \item \textbf{Stacking:} We use the \texttt{z} value to sort slices into a coherent 3D volume.
 \end{itemize}
+
+\clinicalexample{Slice Spacing}
+In a chest CT, slices might be positioned at z = -150.0mm, -148.5mm, -147.0mm, etc. The spacing between slices (1.5mm) determines the resolution in the cranial-caudal direction.
 \end{frame}
 
 \begin{frame}
-\frametitle{Data Type Handling}
-\begin{itemize}
-  \item \textbf{8-bit images}: Uint8Array (common in radiography)
-  \item \textbf{16-bit images}: Uint16Array (common in CT/MRI)
-  \item \textbf{Byte ordering}: Little-endian on most systems
-  \item \textbf{Pixel representation}: Usually unsigned (0 to max)
-  \item Hounsfield Units in CT: Requires proper windowing
-\end{itemize}
+\frametitle{Data Type Handling: From Bits to Meaningful Values}
 
-\vspace{0.5cm}
+\begin{columns}[T]
+\begin{column}{0.5\textwidth}
+  \begin{itemize}
+    \item \textbf{8-bit images}: Uint8Array (common in radiography)
+    \item \textbf{16-bit images}: Uint16Array (common in CT/MRI)
+    \item \textbf{Byte ordering}: Little-endian on most systems
+    \item \textbf{Pixel representation}: Usually unsigned (0 to max)
+    \item \textbf{Hounsfield Units} in CT: Requires proper windowing
+  \end{itemize}
+\end{column}
+\begin{column}{0.45\textwidth}
+  \begin{center}
+    \begin{tikzpicture}[scale=0.8]
+      % HU scale visualization
+      \draw[->, thick] (0,0) -- (4,0);
+      \foreach \x in {0,1,2,3,4} {
+        \draw (\x,0) -- (\x,-0.1);
+      }
+      \node[font=\tiny] at (0,-0.3) {-1000};
+      \node[font=\tiny] at (1,-0.3) {-500};
+      \node[font=\tiny] at (2,-0.3) {0};
+      \node[font=\tiny] at (3,-0.3) {500};
+      \node[font=\tiny] at (4,-0.3) {1000};
+      
+      % Tissue regions
+      \fill[blue!20] (0.5,0.1) rectangle (1.5,0.5);
+      \node[blue, font=\tiny] at (1,0.3) {Air};
+      \fill[green!20] (1.7,0.1) rectangle (2.3,0.5);
+      \node[green, font=\tiny] at (2,0.3) {Soft Tissue};
+      \fill[red!20] (2.5,0.1) rectangle (3.5,0.5);
+      \node[red, font=\tiny] at (3,0.3) {Bone};
+      
+      \node[font=\small, medicalblue] at (2,-0.8) {Hounsfield Unit Scale};
+    \end{tikzpicture}
+  \end{center}
+\end{column}
+\end{columns}
+
+\clinicalexample{Hounsfield Units}
+Water = 0 HU, Air = -1000 HU, Bone = +1000 HU. This standardized scale allows radiologists to identify tissues regardless of the scanner used.
+\end{frame}
+
+\begin{frame}
+\frametitle{Slice Collection: Building the Volume}
 
 \textbf{Slice Collection:}
 \begin{itemize}
@@ -104,4 +183,13 @@ const [x, y, z] = posStr.split(' ').map(Number);
   \item Use \texttt{ImagePositionPatient} (most reliable)
   \item Fallback to \texttt{InstanceNumber}
 \end{itemize}
+
+\vspace{0.5cm}
+
+\begin{alertblock}{Critical Sorting Issue}
+If slices aren't sorted correctly, the 3D volume will have anatomical structures in wrong positions, leading to misdiagnosis!
+\end{alertblock}
+
+\knowledgecheck{Volume Assembly}
+Imagine you have slices at z-positions: 10.0, 5.0, 15.0, 0.0. What order should they be assembled in? Why is this important for medical diagnosis?
 \end{frame}

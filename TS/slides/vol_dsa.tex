@@ -1,35 +1,81 @@
 %============================
-% SECTION 3: VOLUME DATA STRUCTURE
+% CHAPTER 3: VOLUME CONSTRUCTION
 %============================
-\section{Volume Data Structure}
+\section{Volume Construction: From Slices to 3D Space}
 
 \begin{frame}
-\frametitle{Volume Representation}
+\frametitle{Chapter 3: Assembling the 3D Puzzle}
 
-\textbf{Definition:} A 3D array of voxel values organized as:
-$$\text{Volume}[z][y][x] = \text{pixel intensity}$$
+\begin{columns}[T]
+\begin{column}{0.6\textwidth}
+  \textbf{Dr. Chen's Next Step:} "I have parsed all the DICOM slices. Now how do I combine them into a 3D volume?"
+  
+  \vspace{0.5cm}
+  \textbf{Volume Representation:} A 3D array of voxel values organized as:
+  $$\text{Volume}[z][y][x] = \text{pixel intensity}$$
+  
+  \begin{itemize}
+    \item \textbf{Dimensions}: width $\times$ height $\times$ depth
+    \item \textbf{Spacing}: Physical distance between voxels
+    \item \textbf{Storage}: Linear Float32Array (memory efficient)
+  \end{itemize}
+\end{column}
+\begin{column}{0.35\textwidth}
+  \begin{center}
+    \begin{tikzpicture}[scale=0.7]
+      % 3D volume visualization
+      \draw[fill=medicalblue!10, draw=medicalblue] (0,0,0) -- (2,0,0) -- (2,2,0) -- (0,2,0) -- cycle;
+      \draw[fill=medicalblue!20, draw=medicalblue] (0,0,1.5) -- (2,0,1.5) -- (2,2,1.5) -- (0,2,1.5) -- cycle;
+      \draw[medicalblue] (0,0,0)--(0,0,1.5) (2,0,0)--(2,0,1.5) (2,2,0)--(2,2,1.5) (0,2,0)--(0,2,1.5);
+      
+      % Voxel grid
+      \foreach \z in {0,0.5,1,1.5} {
+        \foreach \y in {0,0.5,1,1.5,2} {
+          \foreach \x in {0,0.5,1,1.5,2} {
+            \fill[medicalblue!5] (\x,\y,\z) circle (0.02);
+          }
+        }
+      }
+      
+      \node[medicalred] at (1,1,0.75) {Voxel Grid};
+    \end{tikzpicture}
+    \vspace{0.3cm}
+    {\small\color{medicalgray}3D Volume Structure}
+  \end{center}
+\end{column}
+\end{columns}
 
-\begin{itemize}
-  \item \textbf{Dimensions}: width $\times$ height $\times$ depth
-  \item \textbf{Spacing}: Physical distance between voxels
-  \item \textbf{Storage}: Linear Float32Array (memory efficient)
-  \item \textbf{Indexing}: $(x, y, z) \rightarrow \text{offset} = x + y \cdot W + z \cdot W \cdot H$
-\end{itemize}
-
-\vspace{0.5cm}
-
-\textbf{Key Properties:}
-\begin{itemize}
-  \item width: Number of columns
-  \item height: Number of rows
-  \item depth: Number of slices
-  \item spacing: [pixelSpacing.x, pixelSpacing.y, sliceThickness]
-  \item data: Float32Array (normalized pixel values)
-  \item minValue, maxValue: For windowing
-\end{itemize}
+\clinicalexample{Volume Size}
+A chest CT with 512×512×200 voxels contains over 50 million data points. Each voxel represents a 0.5×0.5×1.5mm cube of tissue.
 \end{frame}
 
-\begin{frame}[fragile]{Volume Construction: Memory Mapping}
+\begin{frame}
+\frametitle{Volume Properties: The Essential Metadata}
+
+\begin{table}
+\small
+\centering
+\rowcolors{2}{softblue!20}{white}
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Property} & \textbf{Description} \\
+\midrule
+width & Number of columns (X dimension) \\
+height & Number of rows (Y dimension) \\
+depth & Number of slices (Z dimension) \\
+spacing & [pixelSpacing.x, pixelSpacing.y, sliceThickness] \\
+data & Float32Array (normalized voxel values) \\
+minValue, maxValue & For windowing and contrast \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\vspace{0.5cm}
+\knowledgecheck{Volume Dimensions}
+If a CT scan has 512×512 pixels per slice and 150 slices, what are the volume dimensions? How much memory does this require in Float32Array?
+\end{frame}
+
+\begin{frame}[fragile]{Volume Construction: Memory Layout}
 To pass data to a \textbf{WebGL 3D Texture}, we must flatten our stack of 2D slices into a single 1D array.
 
 \begin{block}{Indexing Formula}
@@ -37,7 +83,7 @@ The position of a voxel at $(x, y, z)$ in the linear buffer is:
 \[ \text{Index} = (z \times \text{width} \times \text{height}) + (y \times \text{width}) + x \]
 \end{block}
 
-\begin{lstlisting}
+\begin{lstlisting}[language=JavaScript]
 // Allocate linear array for the entire volume
 this.data = new Float32Array(
   this.width * this.height * this.depth
@@ -54,7 +100,7 @@ const planeOffset = z * this.width * this.height;
 \begin{frame}[fragile]{Volume Construction: Normalization}
 The final step, \texttt{computeMinMax()}, is critical for rendering contrast.
 
-\begin{lstlisting}
+\begin{lstlisting}[language=JavaScript]
 computeMinMax() {
   let min = Infinity, max = -Infinity;
   for (let i = 0; i < this.data.length; i++) {
@@ -70,6 +116,9 @@ computeMinMax() {
     \item \textbf{Windowing:} Allows the user to focus on "Soft Tissue" vs "Bone".
     \item \textbf{GPU Ready:} Pre-calculating these bounds allows the shader to normalize values on the fly: $v_{norm} = \frac{v - min}{max - min}$.
 \end{itemize}
+
+\clinicalexample{Windowing in Practice}
+For lung viewing: Center = -600 HU, Width = 1500 HU. This makes air (black) and soft tissue (gray) visible while bone appears white.
 \end{frame}
 
 \begin{frame}[fragile]
@@ -81,7 +130,7 @@ computeMinMax() {
     z={(0.5cm,0.4cm)}, % Custom 3D perspective
     node font=\tiny\sffamily,
     cell/.style={draw=black!20, fill=white, minimum size=0.5cm},
-    highlight/.style={fill=blue!20, draw=blue, thick}
+    highlight/.style={fill=medicalred!20, draw=medicalred, thick}
 ]
 
   % --- SLICE 1 (Back/z=1) ---
@@ -116,7 +165,7 @@ computeMinMax() {
   \end{scope}
 
   % Connection Arrow
-  \draw[->, blue, thick, dashed] (2.5,1.5,0) [out=-90, in=90] to (6.5,-2.2,0);
+  \draw[->, medicalred, thick, dashed] (2.5,1.5,0) [out=-90, in=90] to (6.5,-2.2,0);
 
 \end{tikzpicture}
 \end{center}
@@ -126,4 +175,6 @@ computeMinMax() {
 \textbf{Calculation:} For $V(2,1,0) \rightarrow 2 + (1 \cdot 4) + (0 \cdot 12) = \mathbf{6}$
 \end{exampleblock}
 
+\knowledgecheck{Memory Access Patterns}
+Why is this linear layout important for GPU texture uploads? What would happen if we stored data in a different order?
 \end{frame}

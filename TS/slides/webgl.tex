@@ -1,68 +1,99 @@
 %============================
-% SECTION 5: WEBGL RENDERING
+% CHAPTER 5: WEBGL RENDERING
 %============================
-\section{WebGL Rendering Architecture}
+\section{WebGL Rendering: GPU-Powered Visualization}
 
-\begin{frame}{WebGL Pipeline: The Host (CPU)}
-\begin{center}
-\begin{tikzpicture}[
-    node distance=1.2cm,
-    base/.style={rectangle, rounded corners, draw, thick, text width=3cm, align=center, font=\sffamily\small, minimum height=0.8cm},
-    cpu/.style={base, fill=yellow!10, draw=yellow!60!black}
-]
-  \node[cpu] (js) {JavaScript Application \\ \scriptsize (DICOM Parsing / Logic)};
-  \node[cpu, below=of js] (ctx) {WebGL Context \\ \scriptsize (The API Bridge)};
+\begin{frame}
+\frametitle{Chapter 5: Awakening the GPU}
+
+\begin{columns}[T]
+\begin{column}{0.6\textwidth}
+  \textbf{Dr. Chen's Realization:} "JavaScript alone can't render 50 million voxels at 60 FPS. I need the GPU!"
   
-  \draw[-Stealth, thick, gray] (js) -- (ctx);
-\end{tikzpicture}
-\end{center}
+  \vspace{0.5cm}
+  \textbf{WebGL} is the bridge between JavaScript and GPU hardware:
+  \begin{itemize}
+    \item \textbf{JavaScript}: Handles data loading and logic
+    \item \textbf{WebGL API}: GPU resource management
+    \item \textbf{Shaders}: GPU programs for rendering
+    \item \textbf{Canvas}: Display output
+  \end{itemize}
+\end{column}
+\begin{column}{0.35\textwidth}
+  \begin{center}
+    \begin{tikzpicture}[scale=0.8]
+      % GPU pipeline
+      \draw[fill=medicalblue!20, rounded corners] (0,0) rectangle (2,0.5);
+      \node[medicalblue] at (1,0.25) {JavaScript};
+      
+      \draw[fill=softgreen!30, rounded corners] (0,0.7) rectangle (2,1.2);
+      \node[medicalgreen] at (1,0.95) {WebGL API};
+      
+      \draw[fill=medicalred!20, rounded corners] (0,1.4) rectangle (2,1.9);
+      \node[medicalred] at (1,1.65) {GPU Shaders};
+      
+      \draw[fill=softblue!30, rounded corners] (0,2.1) rectangle (2,2.6);
+      \node[medicalblue] at (1,2.35) {Canvas Display};
+      
+      % Arrows
+      \draw[->, thick] (1,0.5) -- (1,0.7);
+      \draw[->, thick] (1,1.2) -- (1,1.4);
+      \draw[->, thick] (1,1.9) -- (1,2.1);
+    \end{tikzpicture}
+    \vspace{0.3cm}
+    {\small\color{medicalgray}WebGL Pipeline}
+  \end{center}
+\end{column}
+\end{columns}
 
-\begin{itemize}
-    \item \textbf{Data Ingestion:} JS handles the \texttt{ArrayBuffer} from DICOM files.
-    \item \textbf{State Management:} The Context manages textures, shaders, and draw calls.
-\end{itemize}
+\knowledgecheck{GPU vs CPU}
+Why can't we render medical volumes using only JavaScript? What specific advantages does the GPU provide?
 \end{frame}
 
 \begin{frame}{WebGL Pipeline: GPU Resources}
 \begin{center}
 \begin{tikzpicture}[
     node distance=1cm,
-    res/.style={rectangle, rounded corners, draw=blue!60!black, fill=blue!10, thick, text width=2.8cm, align=center, font=\sffamily\small, minimum height=1cm}
+    res/.style={rectangle, rounded corners, draw=medicalblue!60!black, fill=softblue!20, thick, text width=2.8cm, align=center, font=\sffamily\small, minimum height=1cm}
 ]
   \node[res] (tex) {3D Texture \\ \scriptsize (Voxel Data)};
-  \node[res, left=of tex] (buf) {Geometry Buffers \\ \scriptsize (Cube Vertices)};
+  \node[res, left=of tex] (buf) {Geometry Buffers \\ \scriptsize (Quad Vertices)};
   \node[res, right=of tex] (shd) {Shader Source \\ \scriptsize (GLSL Code)};
 
-  \draw[dashed, gray] (-5, -1) -- (5, -1) node[midway, below, font=\tiny] {Uploaded from CPU to GPU VRAM};
+  \draw[dashed, medicalgray] (-5, -1) -- (5, -1) node[midway, below, font=\tiny] {Uploaded from CPU to GPU VRAM};
 \end{tikzpicture}
 \end{center}
 
 \begin{block}{Volume Storage}
 The entire 3D DICOM stack is stored as a \textbf{Texture3D}, allowing the GPU to perform hardware-accelerated interpolation between slices.
 \end{block}
+
+\clinicalexample{GPU Memory}
+A 512×512×200 CT volume requires ~200MB of GPU memory. Modern GPUs can handle this, but memory management is critical.
 \end{frame}
 
 \begin{frame}{WebGL Pipeline: Shader Execution}
 \begin{center}
 \begin{tikzpicture}[
     node distance=1.2cm,
-    % Renamed 'out' to 'displayout' to avoid conflict with TikZ keyword
-    pipe/.style={rectangle, rounded corners, draw=green!60!black, fill=green!10, thick, text width=3.5cm, align=center, font=\sffamily\small, minimum height=0.9cm},
-    displayout/.style={rectangle, rounded corners, draw=red!60!black, fill=red!10, thick, text width=3.5cm, align=center, font=\sffamily\small}
+    pipe/.style={rectangle, rounded corners, draw=medicalgreen!60!black, fill=softgreen!20, thick, text width=3.5cm, align=center, font=\sffamily\small, minimum height=0.9cm},
 ]
-  \node[pipe] (vs) {Vertex Shader \\ \scriptsize (Positions the Volume Cube)};
-  \node[pipe, below=of vs] (fs) {Fragment Shader \\ \scriptsize (Volume Ray Casting)};
-  \node[displayout, below=of fs] (canvas) {Canvas Display};
+  \node[pipe] (vs) {Vertex Shader \\ \scriptsize (Positions the Quad)};
+  \node[pipe, below=of vs] (fs) {Fragment Shader \\ \scriptsize (Samples Texture)};
+  \node[pipe, below=of fs] (canvas) {Canvas Display \\ \scriptsize (Final Output)};
 
-  \draw[-Stealth, thick, gray] (vs) -- (fs);
-  \draw[-Stealth, thick, gray] (fs) -- (canvas);
+  \draw[-Stealth, thick, medicalgray] (vs) -- (fs);
+  \draw[-Stealth, thick, medicalgray] (fs) -- (canvas);
 \end{tikzpicture}
 \end{center}
 
 \begin{itemize}
-    \item \textbf{Rasterization:} The GPU determines which pixels on screen cover the geometry (the "proxies" for our volume).
-    \item \textbf{Ray Marching:} For every fragment, the shader samples the 3D texture along the camera's view ray to compute the final pixel intensity.
+    \item \textbf{Rasterization:} The GPU determines which pixels on screen cover the geometry (our slice quad).
+    \item \textbf{Texture Sampling:} For every fragment, the shader samples the 2D texture to get the grayscale value.
 \end{itemize}
+
+\knowledgecheck{Shader Roles}
+What does the vertex shader do? What does the fragment shader do? Why do we need both?
 \end{frame}
 
 \begin{frame}[fragile]

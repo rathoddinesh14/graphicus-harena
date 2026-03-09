@@ -9,13 +9,43 @@
 \usepackage{algorithm}
 \usepackage{algpseudocode}
 \usepackage{bookmark}
+\usepackage{hyperref}
+\usepackage{colortbl}
+\usepackage{multirow}
+\usepackage{booktabs}
 
-\usetikzlibrary{shapes.geometric, arrows.meta, shadows, positioning}
+\usetikzlibrary{shapes.geometric, arrows.meta, shadows, positioning, calc, backgrounds, fit}
 
-% Theme
+% Enhanced Theme with Medical Imaging Colors
 \usetheme{Madrid}
 \usecolortheme{default}
+
+% Custom colors for medical imaging
+\definecolor{medicalblue}{RGB}{0, 102, 204}
+\definecolor{medicalgreen}{RGB}{0, 153, 76}
+\definecolor{medicalred}{RGB}{204, 0, 0}
+\definecolor{medicalgray}{RGB}{128, 128, 128}
+\definecolor{softblue}{RGB}{173, 216, 230}
+\definecolor{softgreen}{RGB}{144, 238, 144}
+
+% Set theme colors
+\setbeamercolor{structure}{fg=medicalblue}
+\setbeamercolor{alerted text}{fg=medicalred}
+\setbeamercolor{example text}{fg=medicalgreen}
+
+% Enhanced navigation
 \setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{footline}[frame number]
+
+% Custom block styles
+\setbeamercolor{block title}{fg=white,bg=medicalblue}
+\setbeamercolor{block body}{fg=black,bg=softblue!20}
+
+\setbeamercolor{alertblock title}{fg=white,bg=medicalred}
+\setbeamercolor{alertblock body}{fg=black,bg=medicalred!10}
+
+\setbeamercolor{exampleblock title}{fg=white,bg=medicalgreen}
+\setbeamercolor{exampleblock body}{fg=black,bg=softgreen!20}
 
 % Custom JavaScript definition for listings
 \lstdefinelanguage{JavaScript}{
@@ -26,35 +56,82 @@
   morestring=[b]"
 }
 
-\lstset{
-  language=JavaScript,
-  basicstyle=\ttfamily\small,
-  keywordstyle=\color{blue}\bfseries,
-  commentstyle=\color{gray},
-  stringstyle=\color{red},
-  breaklines=true,
-  showstringspaces=false
+\lstdefinelanguage{GLSL}{
+  keywords={attribute, uniform, varying, vec2, vec3, vec4, mat4, sampler2D, sampler3D, texture2D, texture3D, gl_Position, gl_FragColor, precision, mediump, highp, lowp},
+  morecomment=[l]{//},
+  morecomment=[s]{/*}{*/},
+  morestring=[b]',
+  morestring=[b]"
 }
 
-\title{DICOM Volume Visualization}
-\subtitle{From Medical Imaging Data to Interactive 3D Rendering}
-\author{Graphicus-Harena Project}
+\lstset{
+  language=JavaScript,
+  basicstyle=\ttfamily\footnotesize,
+  keywordstyle=\color{medicalblue}\bfseries,
+  commentstyle=\color{medicalgray},
+  stringstyle=\color{medicalgreen},
+  breaklines=true,
+  showstringspaces=false,
+  frame=single,
+  backgroundcolor=\color{gray!5},
+  numbers=left,
+  numberstyle=\tiny\color{gray},
+  xleftmargin=2em
+}
+
+% Custom commands for knowledge checks
+\newcommand{\knowledgecheck}[1]{
+  \begin{block}{Knowledge Check: #1}
+    \vspace{0.5cm}
+    \textcolor{medicalred}{\textbf{Think about this...}}
+  \end{block}
+}
+
+\newcommand{\clinicalexample}[1]{
+  \begin{exampleblock}{Clinical Example: #1}
+    \vspace{0.3cm}
+  \end{exampleblock}
+}
+
+\title{\textbf{Graphicus-Harena}: \\ Interactive DICOM Volume Visualization}
+\subtitle{From Medical Imaging Data to WebGL-Powered 3D Rendering}
+\author{\textbf{Dinesh Rathod} \\ Graphicus-Harena Project}
+\institute{Computer Graphics \& Medical Imaging Research}
 \date{\today}
 
 \begin{document}
 %============================
 % TITLE SLIDE
 %============================
-\frame{\titlepage}
-
-%============================
-% TABLE OF CONTENTS
-%============================
-\begin{frame}
-\frametitle{Overview}
-\tableofcontents
+\begin{frame}[plain]
+\begin{tikzpicture}[remember picture, overlay]
+  % Background gradient
+  \fill[medicalblue!20] (current page.south west) rectangle (current page.north east);
+  
+  % Medical cross
+  \draw[medicalred, thick, line width=2pt] (5,5) -- (7,5) -- (7,6) -- (8,6) -- (8,7) -- (7,7) -- (7,8) -- (6,8) -- (6,7) -- (5,7) -- (5,6) -- (6,6) -- (6,5) -- cycle;
+  
+  % Title content
+  \node[anchor=center] at (current page.center) {
+    \begin{minipage}{0.8\textwidth}
+      \centering
+      \vspace{2cm}
+      {\Huge\color{medicalblue}\textbf{Graphicus-Harena}} \\
+      \vspace{0.5cm}
+      {\Large\color{black}Interactive DICOM Volume Visualization} \\
+      \vspace{0.5cm}
+      {\large\color{medicalgray}From Medical Imaging Data to WebGL-Powered 3D Rendering} \\
+      \vspace{1cm}
+      {\large\color{black}\textbf{Dinesh Rathod}} \\
+      {\normalsize\color{medicalgray}Computer Graphics \& Medical Imaging Research} \\
+      \vspace{0.5cm}
+      {\small\color{gray}\today}
+    \end{minipage}
+  };
+\end{tikzpicture}
 \end{frame}
 
+\include{agenda}
 \include{intro}
 \include{dicom_parsing}
 \include{vol_dsa}
